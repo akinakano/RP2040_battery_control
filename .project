@@ -3,6 +3,7 @@
 	<name>primo4</name>
 	<comment></comment>
 	<projects>
+		<project>primo4_CM7</project>
 	</projects>
 	<buildSpec>
 	</buildSpec>

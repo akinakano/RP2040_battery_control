@@ -49,9 +49,9 @@ void NVIC_Init(void)
     NVIC_EnableIRQ(TIM5_IRQn);//割込みON
 
     // MPSV通信
-    NVIC_SetPriority(USART2_IRQn, 1);//優先度4
-    NVIC_EnableIRQ(USART2_IRQn);//割込みON
-    
+    NVIC_SetPriority(UART4_IRQn, 1);//優先度4
+    NVIC_EnableIRQ(UART4_IRQn);//割込みON
+
     // MPSV通信
     NVIC_SetPriority(EXTI0_IRQn, 2);//優先度4
     NVIC_EnableIRQ(EXTI0_IRQn);//割込みON

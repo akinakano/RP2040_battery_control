@@ -9,7 +9,7 @@
                         | USART_ICR_RTOCF | USART_ICR_EOBCF | USART_ICR_UDRCF | USART_ICR_CMCF | USART_ICR_WUCF )
 
 
-//#define MP_COMM_IrqHandler      (USART2_IRQHandler)   // 割込みハンドラの読み替え
+//#define MP_COMM_IrqHandler      (UART4_IRQHandler)   // 割込みハンドラの読み替え
 #define MP_COMM_SOFT_IrqHandler (EXTI0_IRQHandler)    // 割込みハンドラの読み替え
 // #define MP_COMM_UART_IRQn       (USART1_IRQn)
 #define UART_RX_BUF_SIZE        (4096)

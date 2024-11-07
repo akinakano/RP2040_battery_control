@@ -3,8 +3,8 @@
 
 #include "stm32h747xx.h"
 
-#define SCI_COMM_UART      (USART2)
-#define  MP_COMM_UART_IRQn  (USART2_IRQn)
+#define SCI_COMM_UART      (UART4)
+#define  MP_COMM_UART_IRQn  (UART4_IRQn)
 
 
 #define MODE_CHANGE_ALL   (0x01)

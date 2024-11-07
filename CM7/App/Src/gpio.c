@@ -112,23 +112,6 @@ void GPIO_Init(void)
     //SPI1_CS PG10
     GPIOG->MODER = ((uint32_t)(GPIOG->MODER) & ~GPIO_MODER_MODE10_Msk) | (1 << GPIO_MODER_MODE10_Pos);
 
-    uint32_t u32;
-    //for debug GPIO出力
-    /*
-    u32 = GPIOA -> AFR[0];
-    u32 &= 0xFFFFF000;
-    u32 |= 0x00000111;
-    GPIOA -> AFR[0] = u32;
-    */
-    // PA0, PA1 をOUTPUTに設定
-/*
-    u32 = GPIOA -> MODER;
-    u32 &= 0xABFFFFF0;
-    u32 |= 0x00000005;
-    GPIOA -> MODER = u32;
-*/
-
-
     //SPI2_CS PB9 他はCubeMXで自動生成
     //GPIOB->MODER = ((uint32_t)(GPIOB->MODER) & ~GPIO_MODER_MODE9_Msk) | (1 << GPIO_MODER_MODE9_Pos);
 
