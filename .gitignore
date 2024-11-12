@@ -3,6 +3,12 @@ CM4/.settings
 CM7/.settings
 .mxproject
 Debug
-Release
-*.launch
 *.xcodeproj
+*.d
+*.o
+*.su
+*.bin
+*.elf
+*.map
+*.list
+*.launch

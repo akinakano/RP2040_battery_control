@@ -1,0 +1,72 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+# Toolchain: GNU Tools for STM32 (12.3.rel1)
+################################################################################
+
+# Add inputs and outputs from these tool invocations to the build variables 
+CPP_SRCS += \
+../App/Src/vqf.cpp \
+../App/Src/vqfInstance.cpp 
+
+C_SRCS += \
+../App/Src/comm_apmp.c \
+../App/Src/comm_battery.c \
+../App/Src/comm_mpsv.c \
+../App/Src/debug.c \
+../App/Src/gpio.c \
+../App/Src/imu_icm42688.c \
+../App/Src/motion_controller.c \
+../App/Src/nvic.c \
+../App/Src/sci.c \
+../App/Src/tim.c \
+../App/Src/uart.c \
+../App/Src/util.c 
+
+C_DEPS += \
+./App/Src/comm_apmp.d \
+./App/Src/comm_battery.d \
+./App/Src/comm_mpsv.d \
+./App/Src/debug.d \
+./App/Src/gpio.d \
+./App/Src/imu_icm42688.d \
+./App/Src/motion_controller.d \
+./App/Src/nvic.d \
+./App/Src/sci.d \
+./App/Src/tim.d \
+./App/Src/uart.d \
+./App/Src/util.d 
+
+OBJS += \
+./App/Src/comm_apmp.o \
+./App/Src/comm_battery.o \
+./App/Src/comm_mpsv.o \
+./App/Src/debug.o \
+./App/Src/gpio.o \
+./App/Src/imu_icm42688.o \
+./App/Src/motion_controller.o \
+./App/Src/nvic.o \
+./App/Src/sci.o \
+./App/Src/tim.o \
+./App/Src/uart.o \
+./App/Src/util.o \
+./App/Src/vqf.o \
+./App/Src/vqfInstance.o 
+
+CPP_DEPS += \
+./App/Src/vqf.d \
+./App/Src/vqfInstance.d 
+
+
+# Each subdirectory must supply rules for building sources it contributes
+App/Src/%.o App/Src/%.su App/Src/%.cyclo: ../App/Src/%.c App/Src/subdir.mk
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H747xx -c -I../Core/Inc -I../App/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -Os -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+App/Src/%.o App/Src/%.su App/Src/%.cyclo: ../App/Src/%.cpp App/Src/subdir.mk
+	arm-none-eabi-g++ "$<" -mcpu=cortex-m7 -std=gnu++14 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H747xx -c -I../Core/Inc -I../App/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -Os -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -fno-use-cxa-atexit -Wall -fstack-usage -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+
+clean: clean-App-2f-Src
+
+clean-App-2f-Src:
+	-$(RM) ./App/Src/comm_apmp.cyclo ./App/Src/comm_apmp.d ./App/Src/comm_apmp.o ./App/Src/comm_apmp.su ./App/Src/comm_battery.cyclo ./App/Src/comm_battery.d ./App/Src/comm_battery.o ./App/Src/comm_battery.su ./App/Src/comm_mpsv.cyclo ./App/Src/comm_mpsv.d ./App/Src/comm_mpsv.o ./App/Src/comm_mpsv.su ./App/Src/debug.cyclo ./App/Src/debug.d ./App/Src/debug.o ./App/Src/debug.su ./App/Src/gpio.cyclo ./App/Src/gpio.d ./App/Src/gpio.o ./App/Src/gpio.su ./App/Src/imu_icm42688.cyclo ./App/Src/imu_icm42688.d ./App/Src/imu_icm42688.o ./App/Src/imu_icm42688.su ./App/Src/motion_controller.cyclo ./App/Src/motion_controller.d ./App/Src/motion_controller.o ./App/Src/motion_controller.su ./App/Src/nvic.cyclo ./App/Src/nvic.d ./App/Src/nvic.o ./App/Src/nvic.su ./App/Src/sci.cyclo ./App/Src/sci.d ./App/Src/sci.o ./App/Src/sci.su ./App/Src/tim.cyclo ./App/Src/tim.d ./App/Src/tim.o ./App/Src/tim.su ./App/Src/uart.cyclo ./App/Src/uart.d ./App/Src/uart.o ./App/Src/uart.su ./App/Src/util.cyclo ./App/Src/util.d ./App/Src/util.o ./App/Src/util.su ./App/Src/vqf.cyclo ./App/Src/vqf.d ./App/Src/vqf.o ./App/Src/vqf.su ./App/Src/vqfInstance.cyclo ./App/Src/vqfInstance.d ./App/Src/vqfInstance.o ./App/Src/vqfInstance.su
+
+.PHONY: clean-App-2f-Src
+
