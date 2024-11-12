@@ -13,164 +13,100 @@
 
 #define     ABS_I(x)    (x < 0 ? (-x) :(x))
 
-// 送受信バッファ（リングバッファ）(デバッグ通信用)
-#define RX_BUFF_SIZE 16
-static volatile char  rx_buff[RX_BUFF_SIZE];
-static volatile uint32_t rx_tail = 0;  // 受信バッファTailポインタ（格納ポインタ）
-static          uint32_t rx_head = 0;  // 受信バッファHeadポインタ（取り出しポインタ）
+static volatile uint8_t rx_buff[RX_BUFF_SIZE];
+static volatile int rx_tail = 0;
+static          int rx_head = 0;
+static          uint8_t tx_buff[TX_BUFF_SIZE];
+static          int tx_tail = 0;
+static volatile int tx_head = 0;
 
-#define TX_BUFF_SIZE 128
-static          char tx_buff[TX_BUFF_SIZE];
-static          uint32_t tx_tail = 0;  // 送信バッファTailポインタ（格納ポインタ）
-static volatile uint32_t tx_head = 0;  // 送信バッファHeadポインタ（取り出しポインタ）
+void SCI_Init(void) { // DebugUART
 
-//タイマ3割込みで処理
-void SCI_IrqHandler(void)//tim3
-{
-    //更新割込み処理終了
-    if(TIM3->SR & TIM_SR_UIF){
-        TIM3->SR &= ~TIM_SR_UIF;
-    }
+  // Peripheral clock enable
+  RCC->APB1LENR |= RCC_APB1LENR_USART2EN;
+  // PD5      ------> AF7:UART2_TX
+  // PD6      ------> AF7:UART2_RX
+  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL5_Msk ) | ( 7 << GPIO_AFRL_AFSEL5_Pos ) );
+  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE5_Msk ) | ( 2 << GPIO_MODER_MODE5_Pos ) );
+  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL6_Msk ) | ( 7 << GPIO_AFRL_AFSEL6_Pos ) );
+  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE6_Msk ) | ( 2 << GPIO_MODER_MODE6_Pos ) );
 
-    //
-    SCI_RX_handler();
-    SCI_TX_handler();
+  // baudrate : 115200
+  // parity   : none
+  // word     : 8bit
+  // stop     : 1bit
+  // flow ctrl: disable
+  SCI_UART->CR1 &= ~USART_CR1_UE;
+  SCI_UART->CR1 = USART_CR1_TXFEIE | USART_CR1_FIFOEN | USART_CR1_RTOIE | USART_CR1_TE | USART_CR1_RE;
+  SCI_UART->CR2 = USART_CR2_RTOEN;
+  SCI_UART->CR3 = USART_CR3_RXFTIE | (0b100 << USART_CR3_RXFTCFG_Pos);
+  SCI_UART->GTPR = 0; // prescaller x1
+  SCI_UART->RTOR = SCI_BAUDRATE * 20 / 1000; // 20ms
+  uint32_t usart_div = APB_CLK / SCI_BAUDRATE;
+  SCI_UART->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate
+  SCI_UART->CR1 |= USART_CR1_UE;
+
+
+  SCI_putc('X');
 }
 
-void SCI_RX_handler(void)
-{
-    USART_TypeDef *UARTx = SCI_DEBUG_UART;
+void SCI_IRQHandler(void) {
 
-    if(!UARTx) {
-        return;
-    }
-
-    // 受信FIFOのデータをすべて処理する(受信FIFOのデータ格納段数<RLVL>が0になるまで)
-    while (UARTx->ISR & USART_ISR_RXNE_RXFNE) {
-        // 受信FIFOから受信データ取り出し
-        char read_data = (char)(UARTx->RDR & 0x000000FF);
-        uint32_t rx_tail_tmp = (rx_tail+1) % RX_BUFF_SIZE;
-
-        // 受信バッファに空きがあれば格納、なければ破棄
-        if (rx_tail_tmp != rx_head) {
-            rx_buff[rx_tail] = read_data;
-            // 受信バッファ格納ポインタ更新
-            rx_tail = rx_tail_tmp;
-        }
-    }
-}
-
-void SCI_TX_handler(void)
-{
-    USART_TypeDef *UARTx = SCI_DEBUG_UART;
-
-    // 送信バッファが空になるまで繰り返す
+  uint32_t isr = SCI_UART->ISR;
+  if(isr & USART_ISR_TXFE) {
     while (tx_tail != tx_head) {
-        if( UARTx->ISR & USART_ISR_TXE_TXFNF ) {
-            // 送信FIFOに空きがあれば送信データを書き込む
-            UARTx->TDR = tx_buff[tx_head];
-            // 送信バッファ取り出しポインタ更新
-            tx_head = (tx_head+1) % TX_BUFF_SIZE;
-        } else {
-            // 送信FIFOがフルなので次の割り込みまで処理を延期する
-            return;
-        }
+      if( SCI_UART->ISR & USART_ISR_TXE_TXFNF ) {
+        SCI_UART->TDR = tx_buff[tx_head];
+        tx_head = (tx_head + 1) % TX_BUFF_SIZE;
+      }
     }
+    SCI_UART->CR1 &= ~USART_CR1_TXFEIE;
+  }
+  if(isr & (USART_ISR_RXFT | USART_ISR_RTOF)) {
+    while(SCI_UART->ISR & USART_ISR_RXNE_RXFNE) {
+      uint8_t d = (uint8_t)SCI_UART->RDR;
+      int rx_tail_tmp = (rx_tail + 1) % RX_BUFF_SIZE;
+      if(rx_tail_tmp != rx_head) {
+        rx_buff[rx_tail] = d;
+        rx_tail = rx_tail_tmp;
+      }
+    }
+    SCI_UART->ICR = USART_ICR_RTOCF;
+  }
 }
 
-/**********************************
-  １バイト受信
- **********************************/
-int32_t SCI_read(int32_t *read_char)
-{
-    if (rx_tail != rx_head) {
-        // 受信バッファにデータがあれば取り出す
-        *read_char = rx_buff[rx_head];
-        // 受信バッファ取り出しポインタ更新
-        rx_head = (rx_head+1) % RX_BUFF_SIZE;
-        return 1;
-    }
-
-    // 受信バッファが空なら何もしないで終了
-    *read_char = 0;
-    return 0;
+int SCI_checkc(void) {
+  if(rx_tail != rx_head) {
+    int d = rx_buff[rx_head];
+    rx_head = (rx_head + 1) % RX_BUFF_SIZE;
+    return d;
+  }
+  return -1;
 }
 
-/*********************************
-  １バイト送信
- *********************************/
-int32_t SCI_write(int32_t send_char)
-{
-    uint32_t txTailTmp = (tx_tail+1) % TX_BUFF_SIZE;
-    // 送信バッファに空きができるまで待つ
-    while (txTailTmp == tx_head) {}
-    // 送信バッファに送信データ格納
-    tx_buff[tx_tail] = (char)send_char;
-    // 送信バッファ格納ポインタ更新
+int SCI_getc(void) {
+  int c;
+  while((c = SCI_checkc()) < 0);
+  if(c == 0x0d) c = '\n';
+  return c;
+}
+
+void SCI_putc(uint8_t c) {
+    int txTailTmp = (tx_tail + 1) % TX_BUFF_SIZE;
+    while(txTailTmp == tx_head);
+    tx_buff[tx_tail] = c;
     tx_tail = txTailTmp;
-
-    return 1;
+    if(!(SCI_UART->CR1 & USART_CR1_TXFEIE)) SCI_UART->CR1 |= USART_CR1_TXFEIE;
 }
 
-/**********************************
+int SCI_puts(const char *str) {
 
-  これ以降は汎用関数
-  ハードウェアに依存しない
-
- **********************************/
-
-/**********************************
-  １文字表示
- **********************************/
-int32_t SCI_putchar(int32_t c)
-{
-    /* 改行はCR+LFに変換して送信 */
-    if(c == '\n'){
-        if(!SCI_write(0x0D))
-            return(0);
-        if(!SCI_write(0x0A))
-            return 0;
-    }
-
-    /* それ以外はそのまま送信 */
-    else{
-        if(!SCI_write(c))
-            return 0;
-    }
-
-    return 1;
-}
-
-/**********************************
-  文字列表示
- **********************************/
-static int32_t printStr(const char *str)
-{
-    const char *s;
-
-    /* 終端文字まで1文字ずつ表示 */
-    for(s=str; *s != '\0'; s++)
-        if(!SCI_putchar(*s))
-            return 0;
-
-    /* 表示した文字数を返す */
-    return (s - str);
-}
-
-/**********************************
-  文字列表示(最後に改行付き)
- **********************************/
-int32_t SCI_puts(const char *str)
-{
-    int32_t len;
-
-    /* 文字列表示 */
-    len = printStr(str);
-
-    /* 最後に改行を表示 */
-    SCI_putchar('\n');
-
-    return (len + 1);
+  const char *s;
+  for(s = str; *s; s++) {
+    if(*s == 0x0a) SCI_putc(0x0d);
+    SCI_putc(*s);
+  }
+  return s - str;
 }
 
 /**********************************
@@ -207,26 +143,26 @@ static void printFmt(char *p, uint16_t order, uint16_t alignLeft, uint16_t fillZ
             
             /* マイナス表示 */
             if(minus){
-                SCI_putchar('-');
+                SCI_putc('-');
                 minus = 0;
             }
         }
 
         for(i=0; i<order; i++)
-            SCI_putchar(pad);
+            SCI_putc(pad);
     }
 
     /* マイナス表示 */
     if(minus)
-        SCI_putchar('-');
+        SCI_putc('-');
 
     /* データの表示 */
-    printStr(p);
+    SCI_puts(p);
 
     /* 左詰め */
     if(alignLeft)
         for(i=0; i<order; i++)
-            SCI_putchar(' ');
+            SCI_putc(' ');
 }
 
 /**********************************
@@ -312,7 +248,7 @@ static const char *parseFmt(const char *s, void *value)
 /**********************************
   いわゆる printf
  **********************************/
-int32_t SCI_printf(const char *str, ... )
+int SCI_printf(const char *str, ... )
 {
     va_list ap;
     const char *s;
@@ -327,7 +263,7 @@ int32_t SCI_printf(const char *str, ... )
 
             /* "%%"なら'%'を表示 */
             if(*s == '%'){
-                SCI_putchar('%');
+                SCI_putc('%');
                 s++;
             }
             /* フォーマットに従って表示 */
@@ -340,7 +276,8 @@ int32_t SCI_printf(const char *str, ... )
 
         /* 1文字ずつ普通に表示 */
         else{
-            SCI_putchar(*s);
+            if(*s == 0x0a) SCI_putc(0x0d);
+            SCI_putc(*s);
             s++;
         }
     }
@@ -348,39 +285,6 @@ int32_t SCI_printf(const char *str, ... )
     va_end(ap);
     return(s - str);
 }
-
-/**********************************
-  １文字受信
- **********************************/
-int32_t SCI_getchar(void)
-{
-    int32_t c;
-
-    /* データを受信するまで待つ */
-    while(!SCI_read(&c));
-
-    /* 改行文字変換 */
-    if(c == 0x0D)
-        c = '\n';
-    return c;
-}
-
-/**********************************
-  １文字受信(データを待たない)
- **********************************/
-int32_t SCI_getchar2(void)
-{
-    int32_t c;
-
-    /* データを受信 */
-    SCI_read(&c);
-
-    /* 改行文字変換 */
-    if(c == 0x0D)
-        c = '\n';
-    return c;
-}
-
 
 /**********************************
   文字列を一行受信
@@ -391,11 +295,10 @@ char *SCI_gets(char *s)
     int32_t c;
 
     /* 改行まで受信 */
-    while((c = SCI_getchar()) != '\n'){
+    while((c = SCI_getc()) != '\n'){
         s[i] = c;
         i++;
         if (isprint(c)) {
-            // SCI_putchar(c);     /* エコーバック */
             SCI_printf("%c", c);
         } else {
                 //SCI_printf("[0x%02X]",c);

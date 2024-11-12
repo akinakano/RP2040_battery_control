@@ -29,16 +29,16 @@ void NVIC_Init(void)
     // EXTI->C2EMR1 &= (~EXTI_EMR1_EM8);
 
     // メカナム速度制御 
-    NVIC_SetPriority(TIM2_IRQn, 3);//優先度3
-    NVIC_EnableIRQ(TIM2_IRQn);//割込みON
-    
+    NVIC_SetPriority(TIM4_IRQn, 3);//優先度3
+    NVIC_EnableIRQ(TIM4_IRQn);//割込みON
+
     // デバッグ入出力
-    NVIC_SetPriority(TIM3_IRQn, 10);//優先度10
-    NVIC_EnableIRQ(TIM3_IRQn);//割込みON
+    NVIC_SetPriority(USART2_IRQn, 10);//優先度10
+    NVIC_EnableIRQ(USART2_IRQn);//割込みON
 
     // APMP通信 Rx
-    NVIC_SetPriority(TIM4_IRQn, 4);//優先度4
-    NVIC_EnableIRQ(TIM4_IRQn);//割込みON
+    NVIC_SetPriority(TIM2_IRQn, 4);//優先度4
+    NVIC_EnableIRQ(TIM2_IRQn);//割込みON
 
     // // APMP通信 Rx
     NVIC_SetPriority(TIM8_BRK_TIM12_IRQn, 6);//優先度4

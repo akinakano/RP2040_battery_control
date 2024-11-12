@@ -96,7 +96,7 @@ int32_t inputChar(void)
 
     /* キー入力 */
     SCI_printf("> ");
-    c = SCI_getchar();
+    c = SCI_getc();
 
     /* 押した文字とその文字コードを表示 */
     if(c != '\n')
@@ -232,11 +232,11 @@ void dumpHex(const char *msg, const char *s, uint16_t len)
             SCI_printf("%02x ",s[i]);
             i++;
             if(i == len){
-                SCI_putchar('\n');
+                SCI_putc('\n');
                 break;
             }
         }
-        SCI_putchar('\n');
+        SCI_putc('\n');
     }
 }
 

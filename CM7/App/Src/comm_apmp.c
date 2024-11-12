@@ -28,8 +28,8 @@ static uint8_t calc_crc(uint8_t *ptr, uint8_t len);
 
 void Comm_APMP_Rx_IrqHandler(){
     //更新割込み処理終了
-    if(TIM4->SR & TIM_SR_UIF){
-        TIM4->SR &= ~TIM_SR_UIF;
+    if(TIM2->SR & TIM_SR_UIF){
+        TIM2->SR &= ~TIM_SR_UIF;
     }
 
     comm_apmp_rx_handler();

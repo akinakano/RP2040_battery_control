@@ -1,9 +1,0 @@
-#
-# ST-LINK image write for primo
-#
-
-primo: all
-	arm-none-eabi-objcopy -O binary primo4_CM7.elf primo4_CM7.bin
-	st-flash --reset write primo4_CM7.bin 0x8000000              
-
-

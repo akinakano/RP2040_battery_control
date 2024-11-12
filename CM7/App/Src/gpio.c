@@ -91,14 +91,12 @@ void GPIO_15V(int sw) {
 // GPIOの設定
 void GPIO_Init(void)
 {
-    uint32_t rcc_ahb4enr = //RCC_APB4ENR_SYSCFGEN
-                          (1 << RCC_AHB4ENR_GPIOGEN_Pos)
-                         | (1 << RCC_AHB4ENR_GPIOEEN_Pos)
-                         | (1 << RCC_AHB4ENR_GPIODEN_Pos)
-                         | (1 << RCC_AHB4ENR_GPIOCEN_Pos)
-                         | (1 << RCC_AHB4ENR_GPIOBEN_Pos)
-                         | (1 << RCC_AHB4ENR_GPIOAEN_Pos);
-    RCC->AHB4ENR |= rcc_ahb4enr;
+    RCC->AHB4ENR |= (1 << RCC_AHB4ENR_GPIOGEN_Pos)
+                  | (1 << RCC_AHB4ENR_GPIOEEN_Pos)
+                  | (1 << RCC_AHB4ENR_GPIODEN_Pos)
+                  | (1 << RCC_AHB4ENR_GPIOCEN_Pos)
+                  | (1 << RCC_AHB4ENR_GPIOBEN_Pos)
+                  | (1 << RCC_AHB4ENR_GPIOAEN_Pos);
 
     //LED1,2,3,4
     GPIOD->MODER = ((uint32_t)(GPIOD->MODER) & ~GPIO_MODER_MODE12_Msk) | (1 << GPIO_MODER_MODE12_Pos);

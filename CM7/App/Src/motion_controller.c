@@ -57,8 +57,8 @@ void MotionControl_IrqHandler(){
     //PA0_ON();
 
     //更新割込み処理終了
-    if(TIM2->SR & TIM_SR_UIF){
-        TIM2->SR &= ~TIM_SR_UIF;
+    if(TIM4->SR & TIM_SR_UIF){
+        TIM4->SR &= ~TIM_SR_UIF;
     }
     
     //速度指令値代入

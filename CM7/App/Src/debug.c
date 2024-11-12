@@ -26,12 +26,12 @@ void debug_menu(void){
     SCI_printf("b : battery info \n");
     SCI_printf("z : break \n");
 
-    int32_t c = SCI_getchar();
+    int c = SCI_getc();
     SCI_printf("%c\n",c);
     if(c == 'p'){
       while(1){
           debug_print();
-          c = SCI_getchar2();
+          c = SCI_checkc();
 
           if ( c== 'z') {
             break;
