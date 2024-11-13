@@ -5,7 +5,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-/Users/nakada/aid/primo4_mp/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c 
+${BUILDROOT_DIR}/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c 
 
 C_DEPS += \
 ./Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.d 
@@ -15,7 +15,7 @@ OBJS += \
 
 
 # Each subdirectory must supply rules for building sources it contributes
-Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.o: /Users/nakada/aid/primo4_mp/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c Common/Src/subdir.mk
+Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.o: ${BUILDROOT_DIR}/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c Common/Src/subdir.mk
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H747xx -c -I../Core/Inc -I../App/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -Os -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 
 clean: clean-Common-2f-Src

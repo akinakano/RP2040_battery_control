@@ -1,0 +1,2 @@
+
+export BUILDROOT_DIR=${basename ${shell cd ../..; pwd}}

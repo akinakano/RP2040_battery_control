@@ -12,3 +12,5 @@ Debug
 *.map
 *.list
 *.launch
+*.DS_Store
+*.log

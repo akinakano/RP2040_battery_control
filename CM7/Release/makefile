@@ -89,8 +89,8 @@ all: main-build
 main-build: primo4_CM7.elf secondary-outputs
 
 # Tool invocations
-primo4_CM7.elf primo4_CM7.map: $(OBJS) $(USER_OBJS) /Users/nakada/aid/primo4_mp/CM7/STM32H747IITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-g++ -o "primo4_CM7.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/Users/nakada/aid/primo4_mp/CM7/STM32H747IITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="primo4_CM7.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+primo4_CM7.elf primo4_CM7.map: $(OBJS) $(USER_OBJS) ${BUILDROOT_DIR}/CM7/STM32H747IITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-g++ -o "primo4_CM7.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"${BUILDROOT_DIR}/CM7/STM32H747IITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="primo4_CM7.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
