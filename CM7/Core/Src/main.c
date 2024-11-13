@@ -16,11 +16,8 @@
   */
 
 #include "main.h"
-#include "usbd_def.h"
 #include "usbd_core.h"
-#include "usbd_desc.h"
-#include "usbd_cdc.h"
-#include "usbd_cdc_if.h"
+#include "usb.h"
 
 #include "tim.h"
 #include "uart.h"
@@ -70,17 +67,15 @@ int main(void) {
   }
 
   GPIO_Init();
+  SCI_Init();
+  NVIC_Init();
+
   SPI1_Init();
   USB_DEVICE_Init();
   SMBUS_Init();
-  NVIC_Init();
-  TIM2_Init();
+  TIM3_Init();
   TIM4_Init();
-  TIM5_Init();
-  TIM12_Init();
-  TIM13_Init();
   UART4_Init();
-  SCI_Init();
 #if (HW_WHEEL == HW_WHEEL_DIFF)
   UART7_Init();
 #endif
@@ -181,6 +176,9 @@ static void SPI1_Init(void) {
   HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 
+  //SPI1_CS PA15
+  GPIOA->MODER = ((uint32_t)(GPIOA->MODER) & ~GPIO_MODER_MODE15_Msk) | (1 << GPIO_MODER_MODE15_Pos);
+
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
@@ -208,10 +206,10 @@ static void SPI1_Init(void) {
 
 static void USB_DEVICE_Init(void) {
 
-  if (USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK) Error_Handler();
-  if (USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK) Error_Handler();
-  if (USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS) != USBD_OK) Error_Handler();
-  if (USBD_Start(&hUsbDeviceFS) != USBD_OK) Error_Handler();
+  if(USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK) Error_Handler();
+  if(USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK) Error_Handler();
+  if(USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS) != USBD_OK) Error_Handler();
+  if(USBD_Start(&hUsbDeviceFS) != USBD_OK) Error_Handler();
   HAL_PWREx_EnableUSBVoltageDetector();
 }
 

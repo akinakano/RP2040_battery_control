@@ -56,11 +56,6 @@ void BodyVelocityControl_3(void);
 void MotionControl_IrqHandler(){
     //PA0_ON();
 
-    //更新割込み処理終了
-    if(TIM4->SR & TIM_SR_UIF){
-        TIM4->SR &= ~TIM_SR_UIF;
-    }
-    
     //速度指令値代入
     BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)(apmp_data.vx_cmd_l + (uint16_t)(apmp_data.vx_cmd_h << 8)) - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
     BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)(apmp_data.wz_cmd_l + (uint16_t)(apmp_data.wz_cmd_h << 8)) - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]

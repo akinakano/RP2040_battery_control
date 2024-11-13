@@ -18,9 +18,8 @@ extern int BatterySBUS_Supported;
 void GPIO_Init(void);
 void GPIO_DebugLedOn(uint16_t idx);
 void GPIO_DebugLedOff(uint16_t idx);
-uint8_t GPIO_Read_SW(void);
-uint8_t GPIO_Read_15V_SW(void);
-void GPIO_HeartBeat(void);
+int GPIO_PWR_Switch(void);
+void Heartbeat_IrqHandler(void);
 void GPIO_15V(int sw);
 
 #endif

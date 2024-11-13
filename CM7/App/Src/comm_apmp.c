@@ -26,15 +26,6 @@ static volatile uint32_t tx_head = 0;  // 送信バッファHeadポインタ（�
 
 static uint8_t calc_crc(uint8_t *ptr, uint8_t len);
 
-void Comm_APMP_Rx_IrqHandler(){
-    //更新割込み処理終了
-    if(TIM2->SR & TIM_SR_UIF){
-        TIM2->SR &= ~TIM_SR_UIF;
-    }
-
-    comm_apmp_rx_handler();
-}
-
 
 Comm_APMP_Receive apmp_data = {
     .cmd = 0,
@@ -57,10 +48,6 @@ uint16_t dbg_flag_mpap;
 
 void Comm_APMP_Parse_IrqHandler(){
     //PA1_ON();
-    //更新割込み処理終了
-    if(TIM12->SR & TIM_SR_UIF){
-        TIM12->SR &= ~TIM_SR_UIF;
-    }
 
     int32_t c;
     static int32_t buff_z1;
@@ -391,7 +378,7 @@ void send_data_on_mp_to_ap(void){
     //dbg_flag_mpap |= 0x08;
 }
 
-void comm_apmp_rx_handler(void)
+void Comm_APMP_Rx_IrqHandler(void)
 {
     USART_TypeDef *UARTx = COMM_APMP_UART;
     static uint16_t error_count=0;

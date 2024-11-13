@@ -4,6 +4,31 @@
 
 #include "gpio.h"
 #include "tim.h"
+#include "comm_apmp.h"
+#include "comm_battery.h"
+#include "motion_controller.h"
+
+void TIM3_Init(void) { // 100Hz interval
+
+  RCC->APB1LENR |= RCC_APB1LENR_TIM3EN;
+  TIM3->CR1 |= TIM_CR1_CEN | TIM_CR1_ARPE;
+  TIM3->PSC = 240 - 1; // 1MHz
+  TIM3->ARR = 1000 * 1000 /  100 - 1; // 100Hz
+  TIM3->DIER |= TIM_DIER_UIE;
+  TIM3->EGR |= TIM_EGR_UG;
+}
+
+static uint32_t hz_internal_count = 0;
+void TIM3_IRQHandler(void) { // 100Hz
+
+  TIM3->SR &= ~TIM_SR_UIF;
+  Comm_APMP_Rx_IrqHandler(); // temporary 100Hz
+  Comm_APMP_Parse_IrqHandler(); // temporary 100Hz
+  if(!(hz_internal_count % 2)) Comm_APMP_Tx_IrqHandler(); // tremporary 50Hz
+  if(!(hz_internal_count % 10)) Comm_Battery_IrqHandler(); // 10Hz
+  if(!(hz_internal_count % 100)) Heartbeat_IrqHandler(); // 1Hz
+  hz_internal_count++;
+}
 
 void TIM4_Init(void) { // motion control interval (high priorirty)
 
@@ -15,79 +40,8 @@ void TIM4_Init(void) { // motion control interval (high priorirty)
   TIM4->EGR |= TIM_EGR_UG;
 }
 
+void TIM4_IRQHandler(void) { // 1600Hz
 
-
-
-void TIM2_Init(void) { // interval
-    RCC->APB1LENR |= RCC_APB1LENR_TIM2EN;
-    TIM2->CR1 = TIM_CR1_CEN | TIM_CR1_ARPE;
-    TIM2->PSC = 240 - 1; // 1MHz
-
-    // 1kHzに設定
-    //for debug
-    TIM2->CCMR1 = (TIM2->CCMR1 & ~TIM_CCMR1_OC1M_Msk) | (6 << TIM_CCMR1_OC1M_Pos) | TIM_CCMR1_OC1PE| TIM_CCMR1_OC1FE; //PWMmode1 CH1
-    TIM2->CCMR1 = (TIM2->CCMR1 & ~TIM_CCMR1_OC2M_Msk) | (6 << TIM_CCMR1_OC2M_Pos) | TIM_CCMR1_OC2PE| TIM_CCMR1_OC2FE; //PWMmode1 CH2
-    TIM2->CCMR2 = (TIM2->CCMR1 & ~TIM_CCMR2_OC3M_Msk) | (6 << TIM_CCMR2_OC3M_Pos) | TIM_CCMR2_OC3PE| TIM_CCMR2_OC3FE; //PWMmode1 CH3
-
-    TIM2->CCER |= TIM_CCER_CC1E; //PWM CH1 Output
-    //TIM2->CCER |= TIM_CCER_CC2E; //PWM CH2 Output
-    //TIM2->CCER |= TIM_CCER_CC3E; //PWM CH2 Output
-
-    TIM2->ARR = TIMER_CLOCK_SOURCE_FREQ / COMM_APMP_RX_IRQ_FREQ - 1; // カウントリセット設定値 32bitなので大きい値をセット出来る
-    TIM2->DIER |= TIM_DIER_UIE;                    // 更新割込み有効化
-    TIM2->EGR |= TIM_EGR_UG;                       // カウント初期化
-
-    TIM2->CCR1 = (TIMER_CLOCK_SOURCE_FREQ / COMM_APMP_RX_IRQ_FREQ - 1)/4;
-    //TIM2->CCR2 = (TIMER_CLOCK_SOURCE_FREQ / MOTION_CONTROL_FREQ - 1)/4;
-    //TIM2->CCR3 = (TIMER_CLOCK_SOURCE_FREQ / MOTION_CONTROL_FREQ - 1)/4;
-
-    /*
-    u32 = GPIOA->OTYPER;
-    u32 &= 
-    */
-
-
-}
-
-// tim5の初期化、更新割込みを設定
-// apmp間通信 送信
-void TIM5_Init(void)
-{
-    RCC->APB1LENR |= RCC_APB1LENR_TIM5EN;
-
-    // TIM5で周期割込みを設定する
-    TIM5->CR1 |= TIM_CR1_CEN | TIM_CR1_ARPE;          // カウント有効化、自動再ロード有効化
-    TIM5->PSC = 1 - 1;                                // プリスケーラ 240MHzを1分周
-    // SystemControl: 1kHz
-    TIM5->ARR = TIMER_CLOCK_SOURCE_FREQ / COMM_APMP_TX_IRQ_FREQ - 1; // カウントリセット設定値 32bitなので大きい値をセット出来る 50Hz
-    TIM5->DIER |= TIM_DIER_UIE;                       // 更新割込み有効化
-    TIM5->EGR |= TIM_EGR_UG;                          // カウント初期化
-}
-
-// tim12の初期化、更新割込みを設定
-// apmp間通信 受信解釈
-void TIM12_Init(void)
-{
-    RCC->APB1LENR |= RCC_APB1LENR_TIM12EN;
-
-    // TIM12で周期割込みを設定する
-    TIM12->CR1 |= TIM_CR1_CEN | TIM_CR1_ARPE;          // カウント有効化、自動再ロード有効化
-    TIM12->PSC = 240 - 1;                              // プリスケーラ 240MHzを240分周
-    TIM12->ARR = 1000000 / MOTION_CONTROL_FREQ - 1;    // カウントリセット設定値 1600Hz
-    TIM12->DIER |= TIM_DIER_UIE;                       // 更新割込み有効化
-    TIM12->EGR |= TIM_EGR_UG;                          // カウント初期化
-}
-
-// tim13の初期化、更新割込みを設定
-// バッテリー通信
-void TIM13_Init(void)
-{
-    RCC->APB1LENR |= RCC_APB1LENR_TIM13EN;
-
-    // TIM13で周期割込みを設定する
-    TIM13->CR1 |= TIM_CR1_CEN | TIM_CR1_ARPE;           // カウント有効化、自動再ロード有効化
-    TIM13->PSC = 24000 - 1;                             // プリスケーラ 240MHzを24000分周 = 10KHz
-    TIM13->ARR = 10 * 1000 / 1 - 1;                    // カウントリセット設定値 1Hz
-    TIM13->DIER = TIM_DIER_UIE;                         // 更新割込み有効化
-    TIM13->EGR = TIM_EGR_UG;                            // カウント初期化
+  TIM4->SR &= ~TIM_SR_UIF;
+  MotionControl_IrqHandler();
 }

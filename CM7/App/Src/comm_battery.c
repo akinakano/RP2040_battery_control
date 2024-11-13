@@ -6,6 +6,8 @@
 #include    <ctype.h>
 #include    <stdarg.h>
 #include    "comm_battery.h"
+#include    "comm_apmp.h"
+#include    "comm_mpsv.h"
 #include    "tim.h"
 #include    "gpio.h"
 #include    "sci.h"
@@ -70,11 +72,10 @@ void comm_battery_Init() {
   return;
 }
 
-void comm_battery_tx_Handler() {
+void Comm_Battery_IrqHandler() {
 
   // 1sec interval
-  GPIO_HeartBeat();
-  int sw = GPIO_Read_15V_SW();
+  int sw = GPIO_PWR_Switch();
   if(Status_15V != sw) {
     if(sw) {
       if(Count_15V) {
@@ -125,10 +126,3 @@ void HAL_SMBUS_MasterRxCpltCallback(SMBUS_HandleTypeDef *hsmbus) {
   BatteryStatus.ValidFlag = (1 << 1) | (1 << 0);
 }
 
-void Comm_Battery_IrqHandler() {
-
-    if(TIM13->SR & TIM_SR_UIF){
-        TIM13->SR &= ~TIM_SR_UIF;
-    }
-    comm_battery_tx_Handler();
-}

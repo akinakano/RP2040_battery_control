@@ -20,5 +20,6 @@ struct BatteryStatus_st {
 };
 
 void comm_battery_Init();
+void Comm_Battery_IrqHandler();
 
 #endif // COMM_BATTERY_H

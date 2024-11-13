@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include "HW_type.h"
 
+void MotionControl_IrqHandler();
+
 #define LIM_MIN_MAX(val,min,max)        ((val)<(min) ? (min) : ((val)>(max) ? (max) : (val)))
 #define SMC_PI_F                    (3.14159265358979f)
 

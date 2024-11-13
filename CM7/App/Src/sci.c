@@ -45,9 +45,6 @@ void SCI_Init(void) { // DebugUART
   uint32_t usart_div = APB_CLK / SCI_BAUDRATE;
   SCI_UART->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate
   SCI_UART->CR1 |= USART_CR1_UE;
-
-
-  SCI_putc('X');
 }
 
 void SCI_IRQHandler(void) {
@@ -93,7 +90,7 @@ int SCI_getc(void) {
 
 void SCI_putc(uint8_t c) {
     int txTailTmp = (tx_tail + 1) % TX_BUFF_SIZE;
-    while(txTailTmp == tx_head);
+    if(txTailTmp == tx_head) return;
     tx_buff[tx_tail] = c;
     tx_tail = txTailTmp;
     if(!(SCI_UART->CR1 & USART_CR1_TXFEIE)) SCI_UART->CR1 |= USART_CR1_TXFEIE;

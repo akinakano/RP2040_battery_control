@@ -25,8 +25,9 @@ int32_t comm_apmp_getchar(void);
 int32_t comm_apmp_getchar2(void);
 char *comm_apmp_gets(char *s);
 
-void comm_apmp_rx_handler(void);
-void comm_apmp_tx_handler(void);
+void Comm_APMP_Rx_IrqHandler(void);
+void Comm_APMP_Parse_IrqHandler(void);
+void Comm_APMP_Tx_IrqHandler(void);
 void send_status_mp_to_ap(void);
 void send_data_on_mp_to_ap(void);
 

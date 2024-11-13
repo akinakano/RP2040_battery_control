@@ -5,23 +5,35 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../USB_DEVICE/Target/usbd_conf.c 
+../Core/Src/main.c \
+../Core/Src/stm32h7xx_hal_msp.c \
+../Core/Src/stm32h7xx_it.c \
+../Core/Src/syscalls.c \
+../Core/Src/sysmem.c 
 
 C_DEPS += \
-./USB_DEVICE/Target/usbd_conf.d 
+./Core/Src/main.d \
+./Core/Src/stm32h7xx_hal_msp.d \
+./Core/Src/stm32h7xx_it.d \
+./Core/Src/syscalls.d \
+./Core/Src/sysmem.d 
 
 OBJS += \
-./USB_DEVICE/Target/usbd_conf.o 
+./Core/Src/main.o \
+./Core/Src/stm32h7xx_hal_msp.o \
+./Core/Src/stm32h7xx_it.o \
+./Core/Src/syscalls.o \
+./Core/Src/sysmem.o 
 
 
 # Each subdirectory must supply rules for building sources it contributes
-USB_DEVICE/Target/%.o USB_DEVICE/Target/%.su USB_DEVICE/Target/%.cyclo: ../USB_DEVICE/Target/%.c USB_DEVICE/Target/subdir.mk
+Core/Src/%.o Core/Src/%.su Core/Src/%.cyclo: ../Core/Src/%.c Core/Src/subdir.mk
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H747xx -c -I../Core/Inc -I../App/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -Os -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 
-clean: clean-USB_DEVICE-2f-Target
+clean: clean-Core-2f-Src
 
-clean-USB_DEVICE-2f-Target:
-	-$(RM) ./USB_DEVICE/Target/usbd_conf.cyclo ./USB_DEVICE/Target/usbd_conf.d ./USB_DEVICE/Target/usbd_conf.o ./USB_DEVICE/Target/usbd_conf.su
+clean-Core-2f-Src:
+	-$(RM) ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32h7xx_hal_msp.cyclo ./Core/Src/stm32h7xx_hal_msp.d ./Core/Src/stm32h7xx_hal_msp.o ./Core/Src/stm32h7xx_hal_msp.su ./Core/Src/stm32h7xx_it.cyclo ./Core/Src/stm32h7xx_it.d ./Core/Src/stm32h7xx_it.o ./Core/Src/stm32h7xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su
 
-.PHONY: clean-USB_DEVICE-2f-Target
+.PHONY: clean-Core-2f-Src
 
