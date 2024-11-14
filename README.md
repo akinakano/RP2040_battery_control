@@ -41,7 +41,7 @@ Dockerに移行した方がいいかも。。。そのうち。。。。
 
 ``cd ./primo4_mp`` でprimo4_mpのtop directoryに入って
 
-``make``　でCM7/Release/primo4_CM7.elfが生成できます。
+``make``　でbuild/primo4.elfが生成できます。
 
 FCX-2基板にST-Linkを接続して電源を入れ
 
