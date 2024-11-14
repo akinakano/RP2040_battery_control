@@ -1,8 +1,5 @@
 .settings
-CM4/.settings
-CM7/.settings
 .mxproject
-Debug
 *.xcodeproj
 *.d
 *.o
