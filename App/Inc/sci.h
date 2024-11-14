@@ -8,7 +8,7 @@
 #define SCI_BAUDRATE (115200)
 #define SCI_IRQHandler USART2_IRQHandler
 #define RX_BUFF_SIZE 16
-#define TX_BUFF_SIZE 128
+#define TX_BUFF_SIZE 512
 
 void SCI_RX_handler(void);
 void SCI_TX_handler(void);

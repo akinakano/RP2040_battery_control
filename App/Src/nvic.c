@@ -38,7 +38,7 @@ void NVIC_Init(void)
 
 
     // デバッグ入出力
-    NVIC_SetPriority(USART2_IRQn, 10);//優先度10
+    NVIC_SetPriority(USART2_IRQn, 4);//優先度10
     NVIC_EnableIRQ(USART2_IRQn);//割込みON
 
     // MPSV通信

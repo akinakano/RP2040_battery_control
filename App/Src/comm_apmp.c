@@ -1,12 +1,12 @@
-#include    <stdio.h>
-#include    <ctype.h>
-#include    <stdarg.h>
-#include    <stm32h747xx.h>
-#include    "comm_apmp.h"
-#include    "motion_controller.h"
-#include    "usb.h"
-#include    "HW_type.h"
-#include    "comm_battery.h"
+#include <stdio.h>
+#include <ctype.h>
+#include <stdarg.h>
+#include <stm32h747xx.h>
+#include "comm_apmp.h"
+#include "motion_controller.h"
+#include "usb.h"
+#include "HW_type.h"
+#include "comm_battery.h"
 
 extern struct BatteryStatus_st BatteryStatus;
 
@@ -44,7 +44,10 @@ void Comm_APMP_Rx_Handler(uint8_t* buf, uint32_t len) {
       continue;
     }
     rx_buff[rx_pointer++] = buf[i];
-    if(rx_pointer >= sizeof(Comm_APMP_Receive)) Parse_APMPData(rx_buff);
+    if(rx_pointer >= COMM_APMP_SIZE) {
+      Parse_APMPData(rx_buff);
+      rx_pointer = 0;
+    }
   }
 }
 
@@ -64,10 +67,7 @@ void Comm_APMP_ErrorCheckInterval() { // 10Hz
 
 static void Parse_APMPData(uint8_t *buf) {
 
-  if(calc_crc(rx_buff, sizeof(Comm_APMP_Receive) - 1) != rx_buff[sizeof(Comm_APMP_Receive) - 1]) {
-    rx_pointer = 0;
-    return;
-  }
+  if(calc_crc(buf, COMM_APMP_SIZE - 1) != buf[COMM_APMP_SIZE - 1]) return;
 
   apmp_data.head_h = buf[0];
   apmp_data.head_l = buf[1];
@@ -82,8 +82,7 @@ static void Parse_APMPData(uint8_t *buf) {
   apmp_data.wheel_radius_left  = (buf[11] << 8) | buf[12];
   apmp_data.tread = (buf[13] << 8) | buf[14];
   apmp_data.imu_gyro_scale_gain = (buf[15] << 8) | buf[16];
-  apmp_data.crc = buf[sizeof(Comm_APMP_Receive) - 1];
-  rx_pointer = 0;
+  apmp_data.crc = buf[COMM_APMP_SIZE - 1];
 }
 
 void send_data_on_mp_to_ap(void) {

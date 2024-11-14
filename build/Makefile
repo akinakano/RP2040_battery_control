@@ -11,7 +11,7 @@ OBJCOPY := ${CROSS_COMPILE}objcopy
 SIZE := ${CROSS_COMPILE}size
 RM := rm -rf
 
-VPATH := ${shell find .. \( -name '*.s' -o -name '*.c' -o -name '*.cc' -o -name '*.cxx' \) -print | sed -e 's:/[^\/]*$$::' | sort -u}
+VPATH := ${shell find .. -path ../test -prune -o \( -name '*.s' -o -name '*.c' -o -name '*.cc' -o -name '*.cxx' \) -print | sed -e 's:/[^\/]*$$::' | sort -u}
 TARGET := primo4.elf
 
 #
@@ -68,7 +68,7 @@ CC_FLAGS := \
   ${DEFINES} \
   ${INCLUDE_FILES}
 
-SRCS := ${shell find .. \( -name '*.s' -o -name '*.c' -o -name '*.cc' -o -name '*.cxx' -o -name '*.cpp' \) -print | sed -e 's:^.*/::g'}
+SRCS := ${shell find .. -path ../test -prune -o \( -name '*.s' -o -name '*.c' -o -name '*.cc' -o -name '*.cxx' -o -name '*.cpp' \) -print | sed -e 's:^.*/::g'}
 OBJS := ${shell for i in ${SRCS}; do echo $$i | sed -e 's:\.s$$:.o:' -e 's:\.c$$:.o:' -e 's:\.cc$$:.o:' -e 's:\.cpp$$:.o:'; done}
 
 #

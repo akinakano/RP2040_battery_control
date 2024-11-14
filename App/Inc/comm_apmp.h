@@ -26,6 +26,7 @@ void send_data_on_mp_to_ap(void);
 #define COMM_APMP_HEADER_H (0xab)
 #define COMM_APMP_HEADER_L (0xcd)
 
+#define COMM_APMP_SIZE (22)
 #define COMM_MPAP_SIZE (93)
 
 #define COMM_DIR_X (1)
@@ -44,7 +45,7 @@ void send_data_on_mp_to_ap(void);
 #define APMP_COMM_LOST_EMERGENCY
 #define APMP_COMM_LOST_COUNT     (5) //0.6s
 
-typedef struct{
+typedef struct {
     uint8_t head_h;
     uint8_t head_l;
     uint8_t cmd;
@@ -63,7 +64,7 @@ typedef struct{
     uint8_t rsv3_h;
     uint8_t rsv3_l;
     uint8_t crc;
-}Comm_APMP_Receive;
+} Comm_APMP_Receive;
 
 extern Comm_APMP_Receive apmp_data;
 extern uint16_t dbg_flag_mpap;

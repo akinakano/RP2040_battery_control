@@ -30,7 +30,9 @@ void TIM3_IRQHandler(void) { // 100Hz
     Comm_APMP_ErrorCheckInterval();
     Comm_Battery_IrqHandler();
   }
-  if(!(hz_internal_count % 100)) Heartbeat_IrqHandler(); // 1Hz
+  if(!(hz_internal_count % 100)) { // 1Hz
+    Heartbeat_IrqHandler();
+  }
   hz_internal_count++;
 }
 
