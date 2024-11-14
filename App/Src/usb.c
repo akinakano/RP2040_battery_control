@@ -488,21 +488,11 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length) {
   return (USBD_OK);
 }
 
-static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
-{
+static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len) {
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 
-//
-  uint8_t str[256];
-  int sz = *Len;
-  if(sz > 255) sz = 255;
-  memcpy(str, Buf, sz);
-  str[sz] = 0;
-  SCI_printf("%s", str);
-  CDC_Transmit_FS(Buf, *Len);
-//
-
+  Comm_APMP_Rx_Handler(Buf, *Len);
   return (USBD_OK);
 }
 

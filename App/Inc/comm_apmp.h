@@ -3,36 +3,22 @@
 
 #include <stdint.h>
 
-#define COMM_APMP_OFF (0)
-#define COMM_APMP_ON  (1)
-#define COMM_APMP_SW  COMM_APMP_ON
-
 #define MP_VERSION_YY  ((uint8_t)24)   //0 - 255
 #define MP_VERSION_MM  ((uint8_t)10)   //0 - 255
 #define MP_VERSION_DD  ((uint8_t)30)   //0 - 255
 #define MP_VERSION_NN  ((uint8_t)0)   //0 - 255
 
-
-//#define COMM_APMP_UART (UART8)
-#define COMM_APMP_UART (UART4)
-
-int32_t comm_apmp_read(int32_t *c);
-int32_t comm_apmp_write(int32_t c);
-int32_t comm_apmp_putchar(int32_t c);
-int32_t comm_apmp_puts(const char *str);
-int32_t comm_apmp_printf(const char *str, ... );
-int32_t comm_apmp_getchar(void);
-int32_t comm_apmp_getchar2(void);
-char *comm_apmp_gets(char *s);
-
-void Comm_APMP_Rx_IrqHandler(void);
+void Comm_APMP_Rx_Handler(uint8_t* buf, uint32_t len);
+void Comm_APMP_ErrorCheckInterval();
 void Comm_APMP_Parse_IrqHandler(void);
-void Comm_APMP_Tx_IrqHandler(void);
-void send_status_mp_to_ap(void);
+void Comm_APMP_Tx_Handler(void);
 void send_data_on_mp_to_ap(void);
 
 #define SEND_OFF_MP_TO_AP (0)
 #define SEND_ON_MP_TO_AP  (1)
+
+#define APMP_RX_BUFF_SIZE 256
+#define MPAP_TX_BUFF_SIZE 256
 
 #define AP_MP_CMD_IDLE (0)
 #define AP_MP_CMD_RUN  (1)
@@ -40,7 +26,6 @@ void send_data_on_mp_to_ap(void);
 #define COMM_APMP_HEADER_H (0xab)
 #define COMM_APMP_HEADER_L (0xcd)
 
-#define COMM_APMP_SIZE (22)
 #define COMM_MPAP_SIZE (93)
 
 #define COMM_DIR_X (1)
@@ -70,13 +55,9 @@ typedef struct{
     uint8_t wz_cmd_h;
     uint8_t wz_cmd_l;
     uint16_t wheel_radius_right;
-    //uint8_t wheel_radius_right_l;
     uint16_t wheel_radius_left;
-    //uint8_t wheel_radius_left_l;
     uint16_t tread;
-    //uint8_t tread_l;
     uint16_t imu_gyro_scale_gain;
-    //uint8_t imu_gyro_scale_gain_l;
     uint8_t rsv2_h;
     uint8_t rsv2_l;
     uint8_t rsv3_h;
@@ -84,13 +65,8 @@ typedef struct{
     uint8_t crc;
 }Comm_APMP_Receive;
 
-
-
 extern Comm_APMP_Receive apmp_data;
-extern uint8_t apmp_buff[COMM_APMP_SIZE];
-extern uint8_t mpap_buff[COMM_MPAP_SIZE];
 extern uint16_t dbg_flag_mpap;
-
 
 #define STATE_MP_TO_AP_NORMAL           (0x00)
 #define STATE_MP_TO_AP_ERROR_SVCOMM     (0x01)
@@ -103,13 +79,5 @@ extern uint16_t dbg_flag_mpap;
 #define FLAG_BVC_IMU_CALIB_ERR          (0x80)
 
 extern uint16_t state_mp_to_ap;
-
-//#define COMM_MP_AP_SIZE (29)
-
-// typedef enum{
-//     MP_AP_HEAD_H = 0,
-//     MP_AP_HEAD_L,
-//     MP_AP_
-// }
 
 #endif

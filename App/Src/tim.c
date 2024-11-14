@@ -22,10 +22,14 @@ static uint32_t hz_internal_count = 0;
 void TIM3_IRQHandler(void) { // 100Hz
 
   TIM3->SR &= ~TIM_SR_UIF;
-  Comm_APMP_Rx_IrqHandler(); // temporary 100Hz
-  Comm_APMP_Parse_IrqHandler(); // temporary 100Hz
-  if(!(hz_internal_count % 2)) Comm_APMP_Tx_IrqHandler(); // tremporary 50Hz
-  if(!(hz_internal_count % 10)) Comm_Battery_IrqHandler(); // 10Hz
+
+  if(!(hz_internal_count % 2)) { // 50Hz
+    Comm_APMP_Tx_Handler();
+  }
+  if(!(hz_internal_count % 10)) { // 10Hz
+    Comm_APMP_ErrorCheckInterval();
+    Comm_Battery_IrqHandler();
+  }
   if(!(hz_internal_count % 100)) Heartbeat_IrqHandler(); // 1Hz
   hz_internal_count++;
 }
