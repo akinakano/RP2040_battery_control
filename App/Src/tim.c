@@ -28,10 +28,11 @@ void TIM3_IRQHandler(void) { // 100Hz
   }
   if(!(hz_internal_count % 10)) { // 10Hz
     Comm_APMP_ErrorCheckInterval();
-    Comm_Battery_IrqHandler();
+    Comm_Battery_Handler();
+    PowerControl_Handler();
   }
   if(!(hz_internal_count % 100)) { // 1Hz
-    Heartbeat_IrqHandler();
+    Heartbeat_Handler();
   }
   hz_internal_count++;
 }

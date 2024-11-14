@@ -1,19 +1,7 @@
-
-
-
-
 #include    <stdio.h>
 #include    <ctype.h>
 #include    <stdarg.h>
 #include    "comm_battery.h"
-#include    "comm_apmp.h"
-#include    "comm_mpsv.h"
-#include    "tim.h"
-#include    "gpio.h"
-#include    "sci.h"
-
-// PB8 I2C1_SCL
-// PB9 I2C1_SDA
 
 extern SMBUS_HandleTypeDef hsmbus1;
 static int SMBUS_Status = 1;
@@ -22,8 +10,6 @@ static int ByteOffset;
 struct BatteryStatus_st BatteryStatus;
 uint8_t ReadBuf[32];
 static uint8_t WriteBuf[4];
-int Status_15V = 0;
-static int Count_15V = 2;
 
 struct BatteryCommands_st {
   uint8_t cmd;
@@ -41,7 +27,7 @@ static struct BatteryCommands_st BatteryCommands[] = {
   { 0xff, 0 }, // Terminate
 };
 
-void comm_battery_Init() {
+static void comm_battery_Init() {
 
   CommandSeq = 0;
   BatteryStatus.ValidFlag = 0;
@@ -72,25 +58,9 @@ void comm_battery_Init() {
   return;
 }
 
-void Comm_Battery_IrqHandler() {
+void Comm_Battery_Handler() {
 
-  // 1sec interval
-  int sw = GPIO_PWR_Switch();
-  if(Status_15V != sw) {
-    if(sw) {
-      if(Count_15V) {
-        Count_15V--;
-      } else {
-        GPIO_15V(Status_15V = sw);
-      }
-    } else {
-      Count_15V = 2;
-      GPIO_15V(Status_15V = sw);
-    }
-  } else {
-    if(Count_15V) Count_15V--;
-  }
-
+  if(SMBUS_Status == 1) comm_battery_Init();
   if(SMBUS_Status != 2) return;
   CommandSeq = 0;
   ByteOffset = 0;

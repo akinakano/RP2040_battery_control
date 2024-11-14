@@ -14,12 +14,12 @@
 #define PA1_OFF()                   do { GPIOA->BSRR = 0x00020000; } while(0)
 
 extern int BatterySBUS_Supported;
+extern int Power15V;
 
 void GPIO_Init(void);
 void GPIO_DebugLedOn(uint16_t idx);
 void GPIO_DebugLedOff(uint16_t idx);
-int GPIO_PWR_Switch(void);
-void Heartbeat_IrqHandler(void);
-void GPIO_15V(int sw);
+void PowerControl_Handler();
+void Heartbeat_Handler(void);
 
 #endif

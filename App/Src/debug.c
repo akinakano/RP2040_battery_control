@@ -49,14 +49,8 @@ void debug_menu(void){
       SCI_printf("Serial     : %04d-%02d-%02d-%05d\n", (BatteryStatus.ManufactureDate >> 9) + 1980, (BatteryStatus.ManufactureDate >> 5) & 0x0f, BatteryStatus.ManufactureDate & 0x1f, BatteryStatus.SerialNumber);
       SCI_printf("CFET       : %s\n", BatteryStatus.ManufacturerAccess & (1 << 3) ? "on" : "off");
       SCI_printf("ValidFlag  : %d\n", BatteryStatus.ValidFlag);
-      SCI_printf("15V-SW     : %d %d\n", GPIO_PWR_Switch(), Status_15V);
+      SCI_printf("Power15V   : %d\n", Power15V);
       SCI_printf("----------------------\n");
-    }
-    if( c == '1') {
-      GPIO_15V(1);
-    }
-    if( c == '0') {
-      GPIO_15V(0);
     }
     //apmp_data.cmd = AP_MP_CMD_IDLE;
 }

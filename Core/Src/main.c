@@ -85,8 +85,6 @@ int main(void) {
 
   __enable_irq();
 
-  comm_battery_Init();
-
   while (1) debug_menu();
 }
 
@@ -215,6 +213,6 @@ static void USB_DEVICE_Init(void) {
 
 void Error_Handler(void) {
 
-  __disable_irq();
+  SCI_printf("ErrorHandler");
   while (1);
 }

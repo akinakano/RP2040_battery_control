@@ -19,7 +19,6 @@ struct BatteryStatus_st {
   uint8_t  ValidFlag;
 };
 
-void comm_battery_Init();
-void Comm_Battery_IrqHandler();
+void Comm_Battery_Handler();
 
 #endif // COMM_BATTERY_H
