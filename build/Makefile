@@ -11,7 +11,7 @@ OBJCOPY := ${CROSS_COMPILE}objcopy
 SIZE := ${CROSS_COMPILE}size
 RM := rm -rf
 
-VPATH := ${shell find .. -path ../test -prune -o \( -name '*.s' -o -name '*.c' -o -name '*.cc' -o -name '*.cxx' \) -print | sed -e 's:/[^\/]*$$::' | sort -u}
+VPATH := ${shell find .. -path ../test -prune -o \( -name '*.s' -o -name '*.c' -o -name '*.cc' \) -print | sed -e 's:/[^\/]*$$::' | sort -u}
 TARGET := primo4.elf
 
 #
@@ -34,8 +34,6 @@ DEFINES := \
 
 BASE_OPTIONS := \
   -mcpu=cortex-m7 \
-	-MMD \
-	-MP \
 	--specs=nano.specs \
 	-mfpu=fpv5-d16 \
 	-mfloat-abi=hard \
@@ -68,8 +66,11 @@ CC_FLAGS := \
   ${DEFINES} \
   ${INCLUDE_FILES}
 
-SRCS := ${shell find .. -path ../test -prune -o \( -name '*.s' -o -name '*.c' -o -name '*.cc' -o -name '*.cxx' -o -name '*.cpp' \) -print | sed -e 's:^.*/::g'}
+DEPFLAGS = -MT $@ -MMD -MP -MF $*.d
+
+SRCS := ${shell find .. -path ../test -prune -o \( -name '*.s' -o -name '*.c' -o -name '*.cc' \) -print | sed -e 's:^.*/::g'}
 OBJS := ${shell for i in ${SRCS}; do echo $$i | sed -e 's:\.s$$:.o:' -e 's:\.c$$:.o:' -e 's:\.cc$$:.o:' -e 's:\.cpp$$:.o:'; done}
+DEPS := ${OBJS:%.o=%.d}
 
 #
 # build
@@ -91,12 +92,18 @@ install: all
 clean:
 	rm -rf *.o *.d *.su *.map *.elf *.bin
 
-%.o: %.s
-	${CC} ${ASM_FLAGS} -MF"$(@:%.o=%.d)" -MT"$@" -c -o $@ $<
+include ${wildcard ${DEPS}}
 
-%.o: %.c
-	${CC} ${C_FLAGS} -MF"$(@:%.o=%.d)" -MT"$@" -c -o $@ $<
+${DEPS}:
 
-%.o: %.cpp
-	${CXX} ${CC_FLAGS} -MF"$(@:%.o=%.d)" -MT"$@" -c -o $@ $<
+%.o: %.s %.d
+	echo $@
+	echo $^
+	${CC} ${ASM_FLAGS} ${DEPFLAGS} -c -o $@ $<
+
+%.o: %.c %.d
+	${CC} ${C_FLAGS} ${DEPFLAGS} -c -o $@ $<
+
+%.o: %.cc %.d
+	${CXX} ${CC_FLAGS} ${DEPFLAGS} -c -o $@ $<
 
