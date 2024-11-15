@@ -39,6 +39,8 @@ void parser(COM_MP_TO_SV * mp_sv, COM_SV_TO_MP * sv_mp);
 void set_send_status_data(COM_SV_TO_MP * sv_mp, COM_STATUS* com_st);
 void send_status( COM_SV_TO_MP * sv_mp );
 
+extern uint32_t SystemD2Clock;
+
 /***********************
   関数
 ***********************/
@@ -69,8 +71,7 @@ void comm_mpsv_Init( void )
   UART4->CR2 = 0;
   UART4->CR3 = USART_CR3_DEM | USART_CR3_EIE;
   UART4->GTPR = 0; // prescaller x1
-  uint32_t pclk = 120000000UL; //ToDo: clockから持ってくる。今は120MHz前提。
-  uint32_t usart_div = pclk / 3000000;
+  uint32_t usart_div = SystemD2Clock / 2 / RS485_BAUDRATE;
   UART4->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate設定
   UART4->CR1 |= USART_CR1_UE;
 

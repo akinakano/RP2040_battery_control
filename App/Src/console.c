@@ -19,6 +19,8 @@ static          uint8_t tx_buff[TX_BUFF_SIZE];
 static          int tx_tail = 0;
 static volatile int tx_head = 0;
 
+extern uint32_t SystemD2Clock;
+
 void Console_Init(void) { // DebugUART
 
   // Peripheral clock enable
@@ -42,7 +44,7 @@ void Console_Init(void) { // DebugUART
   CONSOLE_UART->CR3 = USART_CR3_RXFTIE | (0b100 << USART_CR3_RXFTCFG_Pos);
   CONSOLE_UART->GTPR = 0; // prescaller x1
   CONSOLE_UART->RTOR = CONSOLE_BAUDRATE * 20 / 1000; // 20ms
-  uint32_t usart_div = APB_CLK / CONSOLE_BAUDRATE;
+  uint32_t usart_div = SystemD2Clock / 2 / CONSOLE_BAUDRATE;
   CONSOLE_UART->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate
   CONSOLE_UART->CR1 |= USART_CR1_UE;
 
