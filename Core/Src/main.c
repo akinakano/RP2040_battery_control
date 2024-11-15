@@ -54,20 +54,12 @@ int main(void) {
   MPU_Config();
   HAL_Init();
   SystemClock_Config();
-  __HAL_RCC_HSEM_CLK_ENABLE();
+
   HAL_HSEM_FastTake(HSEM_ID_0);
-  HAL_HSEM_Release(HSEM_ID_0,0);
+  HAL_HSEM_Release(HSEM_ID_0, 0);
 
-  int32_t timeout = 0xFFFF;;
-  while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
-  if ( timeout < 0 ) {
-    Error_Handler();
-  }
-
-  PowerControl_Init();
   Console_Init();
-  setbuf(stdout, NULL);
-
+  PowerControl_Init();
   SPI1_Init();
   USB_DEVICE_Init();
   comm_battery_init();
@@ -101,6 +93,16 @@ void MPU_Config(void) {
 }
 
 void SystemClock_Config(void) {
+
+  RCC->APB4ENR |= RCC_APB4ENR_SYSCFGEN;
+  uint32_t dummy = RCC->APB4ENR;
+  RCC->AHB4ENR |= RCC_AHB4ENR_GPIOGEN |
+                  RCC_AHB4ENR_GPIOEEN |
+                  RCC_AHB4ENR_GPIODEN |
+                  RCC_AHB4ENR_GPIOCEN |
+                  RCC_AHB4ENR_GPIOBEN |
+                  RCC_AHB4ENR_GPIOAEN;
+  dummy = RCC->AHB4ENR;
 
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
@@ -138,6 +140,14 @@ void SystemClock_Config(void) {
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) Error_Handler();
+
+  RCC->AHB4ENR |= RCC_AHB4ENR_HSEMEN;
+  dummy = RCC->AHB4ENR;
+  UNUSED(dummy);
+
+  int32_t timeout = 0xFFFF;;
+  while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
+  if(timeout < 0) Error_Handler();
 }
 
 static void SPI1_Init(void) {

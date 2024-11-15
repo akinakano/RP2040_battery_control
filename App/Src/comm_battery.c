@@ -30,6 +30,23 @@ static struct BatteryCommands_st BatteryCommands[] = {
 
 void comm_battery_init(void) {
 
+  RCC->D2CCIP2R = ((uint32_t)(RCC->D2CCIP2R) & ~RCC_D2CCIP2R_I2C123SEL) | RCC_I2C123CLKSOURCE_D2PCLK1;
+
+  // PB6     ------> I2C1_SCL
+  // PB7     ------> I2C1_SDA
+  GPIOB->MODER = ((uint32_t)(GPIOB->MODER) & ~GPIO_MODER_MODE6_Msk) | (2 << GPIO_MODER_MODE6_Pos);
+  GPIOB->OTYPER = ((uint32_t)(GPIOB->OTYPER) & ~GPIO_OTYPER_OT6_Msk) | (1 << GPIO_OTYPER_OT6_Pos);
+  GPIOB->PUPDR = ((uint32_t)(GPIOB->PUPDR) & ~GPIO_PUPDR_PUPD6_Msk) | (1 << GPIO_PUPDR_PUPD6_Pos);
+  GPIOB->AFR[0] = ( ( GPIOB->AFR[0] & ~GPIO_AFRL_AFSEL6_Msk ) | ( 4 << GPIO_AFRL_AFSEL6_Pos));
+  GPIOB->MODER = ((uint32_t)(GPIOB->MODER) & ~GPIO_MODER_MODE7_Msk) | (2 << GPIO_MODER_MODE7_Pos);
+  GPIOB->OTYPER = ((uint32_t)(GPIOB->OTYPER) & ~GPIO_OTYPER_OT7_Msk) | (1 << GPIO_OTYPER_OT7_Pos);
+  GPIOB->PUPDR = ((uint32_t)(GPIOB->PUPDR) & ~GPIO_PUPDR_PUPD7_Msk) | (1 << GPIO_PUPDR_PUPD7_Pos);
+  GPIOB->AFR[0] = ( ( GPIOB->AFR[0] & ~GPIO_AFRL_AFSEL7_Msk ) | ( 4 << GPIO_AFRL_AFSEL7_Pos));
+
+  RCC->APB1LENR |= RCC_APB1LENR_I2C1EN;
+  uint32_t dummy = RCC->APB1LENR;
+  UNUSED(dummy);
+
   hsmbus1.Instance = I2C1;
   hsmbus1.Init.Timing = 0x307075B1;
   hsmbus1.Init.AnalogFilter = SMBUS_ANALOGFILTER_ENABLE;
@@ -115,4 +132,3 @@ void HAL_SMBUS_MasterRxCpltCallback(SMBUS_HandleTypeDef *hsmbus) {
   BatteryStatus.ManufacturerAccess = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
   BatteryStatus.ValidFlag = (1 << 1) | (1 << 0);
 }
-

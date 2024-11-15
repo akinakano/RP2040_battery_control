@@ -8,13 +8,6 @@ int Power15V = 0;
 
 void PowerControl_Init(void) {
 
-  RCC->AHB4ENR |= (1 << RCC_AHB4ENR_GPIOGEN_Pos)
-                | (1 << RCC_AHB4ENR_GPIOEEN_Pos)
-                | (1 << RCC_AHB4ENR_GPIODEN_Pos)
-                | (1 << RCC_AHB4ENR_GPIOCEN_Pos)
-                | (1 << RCC_AHB4ENR_GPIOBEN_Pos)
-                | (1 << RCC_AHB4ENR_GPIOAEN_Pos);
-
   // LED_S1(PA10:AMBER HeartBeat), S2(PG5:Yellow 15V_State) off
   GPIOA->MODER = ((uint32_t)(GPIOA->MODER) & ~GPIO_MODER_MODE10_Msk) | (1 << GPIO_MODER_MODE10_Pos);
   GPIOA->BSRR = GPIO_BSRR_BS10;

@@ -45,6 +45,8 @@ void Console_Init(void) { // DebugUART
   uint32_t usart_div = APB_CLK / CONSOLE_BAUDRATE;
   CONSOLE_UART->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate
   CONSOLE_UART->CR1 |= USART_CR1_UE;
+
+  setbuf(stdout, NULL);
 }
 
 void Console_IRQHandler(void) {
