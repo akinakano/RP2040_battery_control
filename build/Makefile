@@ -92,7 +92,7 @@ install: all
 clean:
 	rm -rf *.o *.d *.su *.map *.elf *.bin
 
-include ${wildcard ${DEPS}}
+include ${DEPS}
 
 ${DEPS}:
 
