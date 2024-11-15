@@ -20,10 +20,9 @@
 #include "usb.h"
 
 #include "tim.h"
-#include "uart.h"
 #include "nvic.h"
 #include "gpio.h"
-#include "sci.h"
+#include "console.h"
 #include "debug.h"
 #include "comm_mpsv.h"
 #include "comm_apmp.h"
@@ -67,22 +66,18 @@ int main(void) {
   }
 
   GPIO_Init();
-  SCI_Init();
-  NVIC_Init();
+  Console_Init();
+  setbuf(stdout, NULL);
 
   SPI1_Init();
   USB_DEVICE_Init();
   SMBUS_Init();
   TIM3_Init();
   TIM4_Init();
-  UART4_Init();
-#if (HW_WHEEL == HW_WHEEL_DIFF)
-  UART7_Init();
-#endif
-
   comm_parser_Init();
   icm42688_Initialize(0, &hspi1, GPIOG, GPIO_PIN_10);
 
+  NVIC_Init();
   __enable_irq();
 
   while (1) debug_menu();
@@ -213,6 +208,7 @@ static void USB_DEVICE_Init(void) {
 
 void Error_Handler(void) {
 
-  SCI_printf("ErrorHandler");
+  printf("ErrorHandler");
+//  __disable_irq();
   while (1);
 }
