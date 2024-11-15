@@ -49,7 +49,14 @@ void NVIC_Init(void)
     NVIC_SetPriority(EXTI0_IRQn, 2);//優先度4
     NVIC_EnableIRQ(EXTI0_IRQn);//割込みON
 
-    // // Battery通信
-    NVIC_SetPriority(TIM8_UP_TIM13_IRQn, 128);//優先度128
-    NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);//割込みON
+    // // Battery SMBUS interval
+    NVIC_SetPriority(TIM8_UP_TIM13_IRQn, 128);
+    NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);
+
+    // SMBUS
+    NVIC_SetPriority(I2C1_EV_IRQn, 8);
+    NVIC_EnableIRQ(I2C1_EV_IRQn);
+    NVIC_SetPriority(I2C1_ER_IRQn, 8);
+    NVIC_EnableIRQ(I2C1_ER_IRQn);
+
 }

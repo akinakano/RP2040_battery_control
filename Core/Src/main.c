@@ -47,7 +47,6 @@ USBD_HandleTypeDef hUsbDeviceFS;
 void SystemClock_Config(void);
 static void MPU_Config(void);
 static void SPI1_Init(void);
-static void SMBUS_Init(void);
 static void USB_DEVICE_Init(void);
 
 int main(void) {
@@ -55,28 +54,19 @@ int main(void) {
   MPU_Config();
   HAL_Init();
   SystemClock_Config();
-  __HAL_RCC_HSEM_CLK_ENABLE();
+
   HAL_HSEM_FastTake(HSEM_ID_0);
-  HAL_HSEM_Release(HSEM_ID_0,0);
+  HAL_HSEM_Release(HSEM_ID_0, 0);
 
-  int32_t timeout = 0xFFFF;;
-  while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
-  if ( timeout < 0 ) {
-    Error_Handler();
-  }
-
-  PowerControl_Init();
   Console_Init();
-  setbuf(stdout, NULL);
-
+  PowerControl_Init();
   SPI1_Init();
   USB_DEVICE_Init();
-  SMBUS_Init();
+  comm_battery_init();
   TIM3_Init();
   TIM4_Init();
   comm_mpsv_Init();
   icm42688_Initialize(0, &hspi1, GPIOG, GPIO_PIN_10);
-
   NVIC_Init();
   __enable_irq();
 
@@ -103,6 +93,16 @@ void MPU_Config(void) {
 }
 
 void SystemClock_Config(void) {
+
+  RCC->APB4ENR |= RCC_APB4ENR_SYSCFGEN;
+  uint32_t dummy = RCC->APB4ENR;
+  RCC->AHB4ENR |= RCC_AHB4ENR_GPIOGEN |
+                  RCC_AHB4ENR_GPIOEEN |
+                  RCC_AHB4ENR_GPIODEN |
+                  RCC_AHB4ENR_GPIOCEN |
+                  RCC_AHB4ENR_GPIOBEN |
+                  RCC_AHB4ENR_GPIOAEN;
+  dummy = RCC->AHB4ENR;
 
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
@@ -140,25 +140,14 @@ void SystemClock_Config(void) {
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) Error_Handler();
-}
 
-static void SMBUS_Init(void) {
+  RCC->AHB4ENR |= RCC_AHB4ENR_HSEMEN;
+  dummy = RCC->AHB4ENR;
+  UNUSED(dummy);
 
-  hsmbus1.Instance = I2C1;
-  hsmbus1.Init.Timing = 0x307075B1;
-  hsmbus1.Init.AnalogFilter = SMBUS_ANALOGFILTER_ENABLE;
-  hsmbus1.Init.OwnAddress1 = 2;
-  hsmbus1.Init.AddressingMode = SMBUS_ADDRESSINGMODE_7BIT;
-  hsmbus1.Init.DualAddressMode = SMBUS_DUALADDRESS_DISABLE;
-  hsmbus1.Init.OwnAddress2 = 0;
-  hsmbus1.Init.OwnAddress2Masks = SMBUS_OA2_NOMASK;
-  hsmbus1.Init.GeneralCallMode = SMBUS_GENERALCALL_DISABLE;
-  hsmbus1.Init.NoStretchMode = SMBUS_NOSTRETCH_DISABLE;
-  hsmbus1.Init.PacketErrorCheckMode = SMBUS_PEC_DISABLE;
-  hsmbus1.Init.PeripheralMode = SMBUS_PERIPHERAL_MODE_SMBUS_HOST;
-  hsmbus1.Init.SMBusTimeout = 0x000085B8;
-  if (HAL_SMBUS_Init(&hsmbus1) != HAL_OK) Error_Handler();
-  if (HAL_SMBUS_ConfigDigitalFilter(&hsmbus1, 0) != HAL_OK) Error_Handler();
+  int32_t timeout = 0xFFFF;;
+  while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
+  if(timeout < 0) Error_Handler();
 }
 
 static void SPI1_Init(void) {
