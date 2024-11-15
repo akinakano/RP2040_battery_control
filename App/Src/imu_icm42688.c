@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "imu_icm42688.h"
+#include "main.h"
 
 #define ICM_ACC_FSR            (16)      /* +/-[g]   */
 #define ICM_GYR_FSR            (1000)    /* +/-[dps] */
@@ -170,6 +171,10 @@ static const uint8_t SCA_US_IMU_SPI4_SEND_UI[][2] = {
 #define IMU_RESET_DONE_FLAG           (0x10)
 
 #define IMU_ACC_ADDR                  (0x1d)
+
+SPI_HandleTypeDef hspi1;
+DMA_HandleTypeDef hdma_spi1_rx;
+DMA_HandleTypeDef hdma_spi1_tx;
 
 /* Private variables ---------------------------------------------------------*/
 static ST_IMU_SPI imu_spi_info[IMU_NUM_OF_MAX] = 
@@ -471,112 +476,129 @@ static uint8_t *icm42688_GetDataInt(uint16_t imu_idx)
  * @detail  IMUの初期設定をする
  * @detail  上林さんのコードを改造して作成した
  *************************************************************************/
-void icm42688_Initialize(uint16_t imu_idx, SPI_HandleTypeDef* hspi, GPIO_TypeDef *hcs_port, uint16_t cs_pin)
-{
-    int i, j;
-    char whoamI, rst;
-    EN_IMU_ERR en_imu_err = EN_IMU_ERR_NON;
+void icm42688_Initialize() {
+  int i, j;
+  char whoamI, rst;
+  EN_IMU_ERR en_imu_err = EN_IMU_ERR_NON;
 
-    uint16_t idx_j, idx_k;
-    uint16_t setidx = imu_idx;
+  uint16_t idx_j, idx_k;
+  uint16_t setidx = 0;
 
-    // Set Imu Spi & Dma Info.
-    if (NULL != imu_spi_info[setidx].hspi) {
-        return;
-    }
-    else {
-        // Spi Info.
-        imu_spi_info[setidx].hspi     = hspi;
-        imu_spi_info[setidx].hcs_port = hcs_port;
-        imu_spi_info[setidx].cs_pin   = cs_pin;
+  __HAL_RCC_DMA1_CLK_ENABLE();
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 
-        // Dma Info.
-        dma_info[setidx].hspi = hspi;
-        dma_info[setidx].transmit_flag = false;
-        dma_info[setidx].data_buff_no = 0;
+  //SPI1_CS PA15
+  GPIOA->MODER = ((uint32_t)(GPIOA->MODER) & ~GPIO_MODER_MODE15_Msk) | (1 << GPIO_MODER_MODE15_Pos);
 
-        for (idx_j=0; idx_j<DATA_BUFF_N; idx_j++) {
-            for (idx_k=0; idx_k<DMA_DATASIZE; idx_k++) {
-                dma_info[setidx].data_Buff[idx_j][idx_k] = 0x00;
-            }
-        }
-    }
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 0x0;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  hspi1.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
+  hspi1.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
+  hspi1.Init.TxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
+  hspi1.Init.RxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
+  hspi1.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
+  hspi1.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
+  hspi1.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
+  hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
+  hspi1.Init.IOSwap = SPI_IO_SWAP_DISABLE;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
 
-    // Set Callback
-    HAL_SPI_RegisterCallback(hspi, HAL_SPI_TX_RX_COMPLETE_CB_ID, imu_TxRxCpltCallback);
+  // Spi Info.
+  imu_spi_info[setidx].hspi     = &hspi1;
+  imu_spi_info[setidx].hcs_port = GPIOA;
+  imu_spi_info[setidx].cs_pin   = GPIO_PIN_15;
 
-    // Set CS pin to High
-    HAL_GPIO_WritePin(hcs_port, cs_pin, GPIO_PIN_SET); 
+  // Dma Info.
+  dma_info[setidx].hspi = &hspi1;
+  dma_info[setidx].transmit_flag = false;
+  dma_info[setidx].data_buff_no = 0;
 
-    // IMUを4線式SPIに設定
-    IMU_SPI_Chip_Set_SPI4(&imu_spi_info[setidx]);
+  for (idx_j=0; idx_j<DATA_BUFF_N; idx_j++) {
+      for (idx_k=0; idx_k<DMA_DATASIZE; idx_k++) {
+          dma_info[setidx].data_Buff[idx_j][idx_k] = 0x00;
+      }
+  }
 
-    // チップID問い合わせ
-    whoamI = Sv_TSPI_Read_Single(&imu_spi_info[setidx], IMU_WHOAMI_ADDRESS);
+  // Set Callback
+  HAL_SPI_RegisterCallback(&hspi1, HAL_SPI_TX_RX_COMPLETE_CB_ID, imu_TxRxCpltCallback);
 
-    // Debug
+  // Set CS pin to High
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_SET);
+
+  // IMUを4線式SPIに設定
+  IMU_SPI_Chip_Set_SPI4(&imu_spi_info[setidx]);
+
+  // チップID問い合わせ
+  whoamI = Sv_TSPI_Read_Single(&imu_spi_info[setidx], IMU_WHOAMI_ADDRESS);
+
+  // Debug
 //  printf("    [Debug] whoamI : 0x%02x .\r\n", whoamI);
 
 
-    if ( whoamI != IMU_WHOAMI_RESPONSE ){
-        en_imu_err = EN_IMU_ERR_WHOAMI;       /* チップIDが間違っていた場合、エラーフラグを立てる */
-        s_en_imu_err[setidx] = en_imu_err;
+  if ( whoamI != IMU_WHOAMI_RESPONSE ){
+      en_imu_err = EN_IMU_ERR_WHOAMI;       /* チップIDが間違っていた場合、エラーフラグを立てる */
+      s_en_imu_err[setidx] = en_imu_err;
+  }
 
-#if 0  /* あえてここではエラー終了しないとのこと(aice踏襲) */
-        /*異常通知(ハード故障) start*/
-        /* 異常通知記録用アドレス取得 */
-        ErrorNotice::UN_ERROR_NOTICE* st_error_notice = ErrorNotice::Get_ErrorNoticeBuf();
-        st_error_notice->bits.bt_fail_imu_init = 1; //異常検出
-        /*異常通知(ハード故障) end*/
-        return;
-#endif
-    }
+  // レジスタ値リセット
+  Sv_TSPI_Write_Single(&imu_spi_info[setidx], IMU_RESET_ADDRESS, IMU_RESET_COMMAND);
 
-    // レジスタ値リセット
-    Sv_TSPI_Write_Single(&imu_spi_info[setidx], IMU_RESET_ADDRESS, IMU_RESET_COMMAND);
+  for(j=0;j<10000;j++){
+      asm("nop");
+      //300usほどsoftware reset. 1ms以上待つ
+  }
 
-    for(j=0;j<10000;j++){
-        asm("nop");
-        //300usほどsoftware reset. 1ms以上待つ
-    }
+  // レジスタ値リセット待ち
+  i=0;
+  while(1){
+      IMU_SPI_Chip_Set_SPI4(&imu_spi_info[setidx]);  //IMUを4線式SPIに設定(RSTされているため再設定)
+      rst = Sv_TSPI_Read_Single(&imu_spi_info[setidx], IMU_RESET_DONE_ADDRESS);
 
-    // レジスタ値リセット待ち
-    i=0;
-    while(1){
-        IMU_SPI_Chip_Set_SPI4(&imu_spi_info[setidx]);  //IMUを4線式SPIに設定(RSTされているため再設定)
-        rst = Sv_TSPI_Read_Single(&imu_spi_info[setidx], IMU_RESET_DONE_ADDRESS);
-
-        // Debug
+      // Debug
 //  printf("    [Debug] rst : 0x%02x .\r\n", rst);
 
-        if(rst==IMU_RESET_DONE_FLAG) {
-            break;                                  /* リセットを確認した */
-        }
+      if(rst==IMU_RESET_DONE_FLAG) {
+          break;                                  /* リセットを確認した */
+      }
 
-        if(i>IMU_RST_WAIT) {
-            en_imu_err = EN_IMU_ERR_RESET;      /* IMU_RST_WAIT回問い合わせてもリセットされないなら、エラーフラグを立てる */
-            break;
-        }
-        i+=1;
+      if(i>IMU_RST_WAIT) {
+          en_imu_err = EN_IMU_ERR_RESET;      /* IMU_RST_WAIT回問い合わせてもリセットされないなら、エラーフラグを立てる */
+          break;
+      }
+      i+=1;
 
-        for(j=0;j<10000;j++){
-            asm("nop");
-            //300usほどsoftware reset. 1ms以上待つ
-        }
-    }
+      for(j=0;j<10000;j++){
+          asm("nop");
+          //300usほどsoftware reset. 1ms以上待つ
+      }
+  }
 
-    /* UI(Main)側の初期設定値を送信*/
-    IMU_SPI_Send_Initial_Settings(&imu_spi_info[setidx]);
+  /* UI(Main)側の初期設定値を送信*/
+  IMU_SPI_Send_Initial_Settings(&imu_spi_info[setidx]);
 
 
-    //IMU値読み出しアドレスの用意
-    for(i=0; i<IMU_ITEMSIZE; i++){
-        s_imu_read_transmit_data[i] = 0x00;
-    }
-    s_imu_read_transmit_data[0] = C_US_IMU_READ | IMU_ACC_ADDR;
+  //IMU値読み出しアドレスの用意
+  for(i=0; i<IMU_ITEMSIZE; i++){
+      s_imu_read_transmit_data[i] = 0x00;
+  }
+  s_imu_read_transmit_data[0] = C_US_IMU_READ | IMU_ACC_ADDR;
 
-    /* エラー情報を代入 */
-    s_en_imu_err[setidx] = en_imu_err;
+  /* エラー情報を代入 */
+  s_en_imu_err[setidx] = en_imu_err;
 //  printf("\r\n");
 }
 
@@ -698,3 +720,150 @@ EN_IMU_ERR icm42688_GetError(SPI_HandleTypeDef * hspi)
 
     return ret;
 }
+
+
+/**
+* @brief SPI MSP Initialization
+* This function configures the hardware resources used in this example
+* @param hspi: SPI handle pointer
+* @retval None
+*/
+void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+  if(hspi->Instance==SPI1)
+  {
+  /* USER CODE BEGIN SPI1_MspInit 0 */
+
+  /* USER CODE END SPI1_MspInit 0 */
+
+  /** Initializes the peripherals clock
+  */
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI1;
+    PeriphClkInitStruct.PLL2.PLL2M = 25;
+    PeriphClkInitStruct.PLL2.PLL2N = 400;
+    PeriphClkInitStruct.PLL2.PLL2P = 2;
+    PeriphClkInitStruct.PLL2.PLL2Q = 2;
+    PeriphClkInitStruct.PLL2.PLL2R = 2;
+    PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
+    PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
+    PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+    PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    /* Peripheral clock enable */
+    __HAL_RCC_SPI1_CLK_ENABLE();
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    /**SPI1 GPIO Configuration
+    PA15 (JTDI)     ------> SPI1_NSS
+    PB3 (JTDO/TRACESWO)     ------> SPI1_SCK
+    PB4 (NJTRST)     ------> SPI1_MISO
+    PB5     ------> SPI1_MOSI
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_15;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* SPI1 DMA Init */
+    /* SPI1_RX Init */
+    hdma_spi1_rx.Instance = DMA1_Stream0;
+    hdma_spi1_rx.Init.Request = DMA_REQUEST_SPI1_RX;
+    hdma_spi1_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_spi1_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_spi1_rx.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_spi1_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_spi1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_spi1_rx.Init.Mode = DMA_NORMAL;
+    hdma_spi1_rx.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_spi1_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    if (HAL_DMA_Init(&hdma_spi1_rx) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(hspi,hdmarx,hdma_spi1_rx);
+
+    /* SPI1_TX Init */
+    hdma_spi1_tx.Instance = DMA1_Stream1;
+    hdma_spi1_tx.Init.Request = DMA_REQUEST_SPI1_TX;
+    hdma_spi1_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+    hdma_spi1_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_spi1_tx.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_spi1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_spi1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_spi1_tx.Init.Mode = DMA_NORMAL;
+    hdma_spi1_tx.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_spi1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    if (HAL_DMA_Init(&hdma_spi1_tx) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(hspi,hdmatx,hdma_spi1_tx);
+
+    /* SPI1 interrupt Init */
+    HAL_NVIC_SetPriority(SPI1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(SPI1_IRQn);
+  /* USER CODE BEGIN SPI1_MspInit 1 */
+
+  /* USER CODE END SPI1_MspInit 1 */
+
+  }
+
+}
+
+/**
+* @brief SPI MSP De-Initialization
+* This function freeze the hardware resources used in this example
+* @param hspi: SPI handle pointer
+* @retval None
+*/
+void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
+{
+  if(hspi->Instance==SPI1)
+  {
+  /* USER CODE BEGIN SPI1_MspDeInit 0 */
+
+  /* USER CODE END SPI1_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_SPI1_CLK_DISABLE();
+
+    /**SPI1 GPIO Configuration
+    PA15 (JTDI)     ------> SPI1_NSS
+    PB3 (JTDO/TRACESWO)     ------> SPI1_SCK
+    PB4 (NJTRST)     ------> SPI1_MISO
+    PB5     ------> SPI1_MOSI
+    */
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_15);
+
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5);
+
+    /* SPI1 DMA DeInit */
+    HAL_DMA_DeInit(hspi->hdmarx);
+    HAL_DMA_DeInit(hspi->hdmatx);
+
+    /* SPI1 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(SPI1_IRQn);
+  /* USER CODE BEGIN SPI1_MspDeInit 1 */
+
+  /* USER CODE END SPI1_MspDeInit 1 */
+  }
+
+}
+

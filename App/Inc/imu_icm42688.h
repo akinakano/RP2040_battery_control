@@ -38,7 +38,7 @@
 #define IMU_FROM_LSB_TO_degC(lsb)   (float)((lsb * 7.548309E-03f) + 25.0f)
 
 /* Public Function */
-void           icm42688_Initialize(uint16_t imu_idx, SPI_HandleTypeDef* hspi, GPIO_TypeDef *hcs_port, uint16_t cs_pin);
+void           icm42688_Initialize();
 void           icm42688_Int(uint16_t imu_idx);
 imu_float_data icm42688_GetDataFloat_blocking(SPI_HandleTypeDef *hspi);
 imu_float_data icm42688_GetDataFloat(uint16_t imu_idx);

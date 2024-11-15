@@ -26,7 +26,7 @@ void Error_Handler(void);
 uint8_t UserRxBufferFS[APP_RX_DATA_SIZE];
 uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 
-extern USBD_HandleTypeDef hUsbDeviceFS;
+USBD_HandleTypeDef hUsbDeviceFS;
 
 static int8_t CDC_Init_FS(void);
 static int8_t CDC_DeInit_FS(void);
@@ -99,6 +99,14 @@ __ALIGN_BEGIN uint8_t USBD_StringSerial[USB_SIZ_STRING_SERIAL] __ALIGN_END = {
 };
 
 // USB device
+void USB_DEVICE_Init(void) {
+
+  if(USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK) Error_Handler();
+  if(USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK) Error_Handler();
+  if(USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS) != USBD_OK) Error_Handler();
+  if(USBD_Start(&hUsbDeviceFS) != USBD_OK) Error_Handler();
+  HAL_PWREx_EnableUSBVoltageDetector();
+}
 
 void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle) {
 

@@ -4,7 +4,7 @@
 #include    "comm_battery.h"
 #include    "main.h"
 
-extern SMBUS_HandleTypeDef hsmbus1;
+SMBUS_HandleTypeDef hsmbus1;
 static int SMBUS_Status = 1;
 static int CommandSeq;
 static int ByteOffset;

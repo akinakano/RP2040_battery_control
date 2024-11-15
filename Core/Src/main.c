@@ -18,7 +18,6 @@
 #include "main.h"
 #include "usbd_core.h"
 #include "usb.h"
-
 #include "tim.h"
 #include "nvic.h"
 #include "power_control.h"
@@ -36,18 +35,8 @@
 #define HSEM_ID_0 (0U) /* HW semaphore 0*/
 #endif
 
-
-SMBUS_HandleTypeDef hsmbus1;
-SPI_HandleTypeDef hspi1;
-DMA_HandleTypeDef hdma_spi1_rx;
-DMA_HandleTypeDef hdma_spi1_tx;
-UART_HandleTypeDef huart2;
-USBD_HandleTypeDef hUsbDeviceFS;
-
 void SystemClock_Config(void);
 static void MPU_Config(void);
-static void SPI1_Init(void);
-static void USB_DEVICE_Init(void);
 
 int main(void) {
 
@@ -60,13 +49,12 @@ int main(void) {
 
   Console_Init();
   PowerControl_Init();
-  SPI1_Init();
   USB_DEVICE_Init();
   comm_battery_init();
   TIM3_Init();
   TIM4_Init();
   comm_mpsv_Init();
-  icm42688_Initialize(0, &hspi1, GPIOG, GPIO_PIN_10);
+  icm42688_Initialize();
   NVIC_Init();
   __enable_irq();
 
@@ -148,51 +136,6 @@ void SystemClock_Config(void) {
   int32_t timeout = 0xFFFF;;
   while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
   if(timeout < 0) Error_Handler();
-}
-
-static void SPI1_Init(void) {
-
-  __HAL_RCC_DMA1_CLK_ENABLE();
-  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
-  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
-
-  //SPI1_CS PA15
-  GPIOA->MODER = ((uint32_t)(GPIOA->MODER) & ~GPIO_MODER_MODE15_Msk) | (1 << GPIO_MODER_MODE15_Pos);
-
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 0x0;
-  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  hspi1.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
-  hspi1.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
-  hspi1.Init.TxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
-  hspi1.Init.RxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
-  hspi1.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
-  hspi1.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
-  hspi1.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
-  hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
-  hspi1.Init.IOSwap = SPI_IO_SWAP_DISABLE;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
-}
-
-static void USB_DEVICE_Init(void) {
-
-  if(USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK) Error_Handler();
-  if(USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK) Error_Handler();
-  if(USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS) != USBD_OK) Error_Handler();
-  if(USBD_Start(&hUsbDeviceFS) != USBD_OK) Error_Handler();
-  HAL_PWREx_EnableUSBVoltageDetector();
 }
 
 void Error_Handler(void) {
