@@ -210,6 +210,7 @@ static void USB_DEVICE_Init(void) {
 
 void Error_Handler(void) {
 
-  __disable_irq();
+  printf("ErrorHandler");
+//  __disable_irq();
   while (1);
 }
