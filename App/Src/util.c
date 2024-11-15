@@ -1,7 +1,6 @@
 
 #include    <stdio.h>
 #include    "util.h"
-#include    "console.h"
 
 /**********************************
   16進数でダンプ表示
@@ -17,10 +16,10 @@ void dumpHex(const char *msg, const char *s, uint16_t len) {
             printf("%02x ", s[i]);
             i++;
             if(i == len) {
-                putchar('\n');
+                printf("\n");
                 break;
             }
         }
-        putchar('\n');
+        printf("\n");
     }
 }
