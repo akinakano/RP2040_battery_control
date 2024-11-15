@@ -1,11 +1,12 @@
 #include <stdbool.h>
 #include <stm32h747xx.h>
+#include <stdio.h>
 
-#include "gpio.h"
+#include "power_control.h"
 
 int Power15V = 0;
 
-void GPIO_Init(void) {
+void PowerControl_Init(void) {
 
   RCC->AHB4ENR |= (1 << RCC_AHB4ENR_GPIOGEN_Pos)
                 | (1 << RCC_AHB4ENR_GPIOEEN_Pos)
@@ -30,51 +31,51 @@ void GPIO_Init(void) {
 }
 
 //POWER-SW
-static int GPIO_PWR_Switch(void) {
+static int Power_Switch(void) {
 
-  return (GPIOC->IDR >> GPIO_IDR_ID13_Pos) & 1;
+  return ((GPIOC->IDR >> GPIO_IDR_ID13_Pos) & 1) ^ 1;
 }
 
-static void GPIO_15V(int sw) {
+static void Power15V_Control(int sw) {
 
   if(sw) {
     GPIOB->BSRR = GPIO_BSRR_BS2;
     GPIOG->BSRR = GPIO_BSRR_BS5;
+    printf("Power15V on\n");
   } else {
     GPIOB->BSRR = GPIO_BSRR_BR2;
     GPIOG->BSRR = GPIO_BSRR_BR5;
+    printf("Power15V off\n");
   }
 }
 
 void PowerControl_Handler() { // 10Hz
 
   static int powerSW = 1;
-  static int count15 = 20;
+  static int powerOnCount = POWER_ON_DELAY;
   static int sw_count = 0;
 
-  int sw = GPIO_PWR_Switch();
+  int sw = Power_Switch();
   if(sw) {
     sw_count++;
   } else {
     sw_count = 0;
   }
-  if(sw_count == 5) {
-    powerSW ^= 1;
-  }
+  if(sw_count == 3) powerSW ^= 1;
 
   if(Power15V != powerSW) {
     if(powerSW) {
-      if(count15) {
-        count15--;
+      if(powerOnCount) {
+        powerOnCount--;
       } else {
-        GPIO_15V(Power15V = powerSW);
+        Power15V_Control(Power15V = powerSW);
       }
     } else {
-      count15 = 20;
-      GPIO_15V(Power15V = powerSW);
+      powerOnCount = POWER_ON_DELAY;
+      Power15V_Control(Power15V = powerSW);
     }
   } else {
-    if(count15) count15--;
+    if(powerOnCount) powerOnCount--;
   }
 }
 

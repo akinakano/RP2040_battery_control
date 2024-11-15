@@ -9,7 +9,7 @@
 #include "comm_apmp.h"
 #include "comm_battery.h"
 #include "tim.h"
-#include "gpio.h"
+#include "power_control.h"
 #include "vqfInstance.h"
 
 extern uint8_t imu_debug_flag;

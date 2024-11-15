@@ -3,9 +3,10 @@
 
 #include "stm32h747xx.h"
 
-#define SCI_COMM_UART      (UART4)
-#define  MP_COMM_UART_IRQn  (UART4_IRQn)
-
+#define RS485_UART              (UART4)
+#define RS485_IRQn              (UART4_IRQn)
+#define MP_COMM_IrqHandler      UART4_IRQHandler
+#define MP_COMM_SOFT_IrqHandler EXTI0_IRQHandler
 
 #define MODE_CHANGE_ALL   (0x01)
 #define MODE_CHANGE_TID   (0x02)
@@ -211,7 +212,7 @@ typedef struct {
     uint16_t err_info_cnt;
 } STATE_MACHINE;
 
-void comm_parser_Init( void );
+void comm_mpsv_Init( void );
 COM_STATUS * get_com_status_handle( void );
 STATE_MACHINE * get_com_state_machine();
 COM_MP_TO_SV * get_send_cmd_handle();

@@ -2,9 +2,9 @@
 #include <stdbool.h>
 #include <stm32h747xx.h>
 
-#include "gpio.h"
 #include "tim.h"
 #include "comm_apmp.h"
+#include "power_control.h"
 #include "comm_battery.h"
 #include "motion_controller.h"
 

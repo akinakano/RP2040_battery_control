@@ -21,7 +21,7 @@
 
 #include "tim.h"
 #include "nvic.h"
-#include "gpio.h"
+#include "power_control.h"
 #include "console.h"
 #include "debug.h"
 #include "comm_mpsv.h"
@@ -65,7 +65,7 @@ int main(void) {
     Error_Handler();
   }
 
-  GPIO_Init();
+  PowerControl_Init();
   Console_Init();
   setbuf(stdout, NULL);
 
@@ -74,7 +74,7 @@ int main(void) {
   SMBUS_Init();
   TIM3_Init();
   TIM4_Init();
-  comm_parser_Init();
+  comm_mpsv_Init();
   icm42688_Initialize(0, &hspi1, GPIOG, GPIO_PIN_10);
 
   NVIC_Init();

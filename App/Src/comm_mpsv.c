@@ -1,7 +1,6 @@
 #include <stm32h747xx.h>
 #include "comm_mpsv.h"
-#include "sci.h"
-#include "GPIO.h"
+#include "console.h"
 #include "motion_controller.h"
 
 #define USART_ICR_ALL ( USART_ICR_PECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_ORECF | USART_ICR_IDLECF\
@@ -9,9 +8,6 @@
                         | USART_ICR_RTOCF | USART_ICR_EOBCF | USART_ICR_UDRCF | USART_ICR_CMCF | USART_ICR_WUCF )
 
 
-//#define MP_COMM_IrqHandler      (UART4_IRQHandler)   // 割込みハンドラの読み替え
-#define MP_COMM_SOFT_IrqHandler (EXTI0_IRQHandler)    // 割込みハンドラの読み替え
-// #define MP_COMM_UART_IRQn       (USART1_IRQn)
 #define UART_RX_BUF_SIZE        (4096)
 
 SV_Comm_t sv_data[COMM_SV_NUM];
@@ -46,17 +42,47 @@ void send_status( COM_SV_TO_MP * sv_mp );
 /***********************
   関数
 ***********************/
-void comm_parser_Init( void )
+void comm_mpsv_Init( void )
 {
-    init_queue( &comm_receive_queue, uart_rx_buf, UART_RX_BUF_SIZE );
-    init_receive_parser_buff_multi( &_com_st[0]);
-    init_receive_parser_buff_multi( &_com_st[1]);
-    _mp_sv_current_write = 0;
-    _mp_sv_current_read = 1;
-    _com_st_current_write = 0;
-    _com_st_current_read = 1;
-    state_mcn.status = MP_TO_SV;
-    state_mcn.err_info_cnt = 0;
+
+  // RS-485 initialize
+  // Peripheral clock enable
+  RCC->APB1LENR |= RCC_APB1LENR_UART4EN;
+  // PD0     ------> AF8:UART4_RX
+  // PD1     ------> AF8:UART4_TX
+  // PB14    ------> AF8:UART4_DE
+  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL0_Msk ) | ( 8 << GPIO_AFRL_AFSEL0_Pos ) );
+  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE0_Msk ) | ( 2 << GPIO_MODER_MODE0_Pos ) );
+  GPIOD->PUPDR = ((uint32_t)(GPIOD->PUPDR) & ~GPIO_PUPDR_PUPD0_Msk) | (1 << GPIO_PUPDR_PUPD0_Pos);
+  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL1_Msk ) | ( 8 << GPIO_AFRL_AFSEL1_Pos ) );
+  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE1_Msk ) | ( 2 << GPIO_MODER_MODE1_Pos ) );
+  GPIOB->AFR[1] = ( ( GPIOB->AFR[1] & ~GPIO_AFRH_AFSEL14_Msk ) | ( 8 << GPIO_AFRH_AFSEL14_Pos ) );
+  GPIOB->MODER = ( ( GPIOB->MODER & ~GPIO_MODER_MODE14_Msk ) | ( 2 << GPIO_MODER_MODE14_Pos ) );
+
+  // baudrate : 3000000
+  // parity   : none
+  // word     : 8bit
+  // stop     : 1bit
+  // flow ctrl: none
+  UART4->CR1 &= ~USART_CR1_UE;
+  UART4->CR1 = USART_CR1_FIFOEN | USART_CR1_PEIE | USART_CR1_RXNEIE_RXFNEIE |  USART_CR1_TE | USART_CR1_RE;
+  UART4->CR2 = 0;
+  UART4->CR3 = USART_CR3_DEM | USART_CR3_EIE;
+  UART4->GTPR = 0; // prescaller x1
+  uint32_t pclk = 120000000UL; //ToDo: clockから持ってくる。今は120MHz前提。
+  uint32_t usart_div = pclk / 3000000;
+  UART4->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate設定
+  UART4->CR1 |= USART_CR1_UE;
+
+  init_queue( &comm_receive_queue, uart_rx_buf, UART_RX_BUF_SIZE );
+  init_receive_parser_buff_multi( &_com_st[0]);
+  init_receive_parser_buff_multi( &_com_st[1]);
+  _mp_sv_current_write = 0;
+  _mp_sv_current_read = 1;
+  _com_st_current_write = 0;
+  _com_st_current_read = 1;
+  state_mcn.status = MP_TO_SV;
+  state_mcn.err_info_cnt = 0;
 }
 
 void init_queue( Queue* _q, uint8_t* _buf, uint32_t _size )
@@ -187,7 +213,7 @@ uint8_t dequeue( Queue* _q, uint8_t* val )
 
 static void USARTx_ISR_error_detected( uint32_t error_register )
 {
-    USART_TypeDef *UARTx = SCI_COMM_UART;
+    USART_TypeDef *UARTx = RS485_UART;
     if (error_register & USART_ISR_FE) {
         usart_error_count.framing_error++;
     }
@@ -198,7 +224,7 @@ static void USARTx_ISR_error_detected( uint32_t error_register )
         usart_error_count.overrun_error++;
 
         // Receive control disable
-        NVIC_DisableIRQ(MP_COMM_UART_IRQn);
+        NVIC_DisableIRQ(RS485_IRQn);
         UARTx->CR1 &= (~USART_CR1_RE);      // Receive disable
 
         // Receive FIFO clear ( RFCLR )
@@ -217,7 +243,7 @@ static void USARTx_ISR_error_detected( uint32_t error_register )
                 break;
             }
         }
-        NVIC_EnableIRQ(MP_COMM_UART_IRQn);
+        NVIC_EnableIRQ(RS485_IRQn);
     }
     usart_error_count.is_error = 1;
 }
@@ -225,9 +251,7 @@ static void USARTx_ISR_error_detected( uint32_t error_register )
 /********************************************************
   上流通信のUARTのRX FIFOにデータが入るとかかる割り込み処理
 ********************************************************/
-void MP_COMM_IrqHandler(void)
-{
-    USART_TypeDef *UARTx = SCI_COMM_UART;
+void MP_COMM_IrqHandler(void) {
 
     uint32_t isr = 0;
     uint8_t is_received = 0;
@@ -236,10 +260,10 @@ void MP_COMM_IrqHandler(void)
     const uint32_t TIMEOUT_COUNT_MAX = 1000;
 
     while ( timeout_count++ < TIMEOUT_COUNT_MAX ) {
-        isr = UARTx->ISR;
+        isr = RS485_UART->ISR;
 
         // 割り込みフラグをクリアする
-        UARTx->ICR |= USART_ICR_ALL;
+        RS485_UART->ICR |= USART_ICR_ALL;
 
         if ( (is_error = is_usart_isr_error_detected(isr)) ) {
             break;
@@ -250,8 +274,8 @@ void MP_COMM_IrqHandler(void)
             break;
         }
         //RXに受信しているのでキューに積む
-        enqueue_no_overwrite( &comm_receive_queue, (uint8_t)(UARTx->RDR & 0xff) );//読めてない？
-        UARTx->RQR |= USART_RQR_TXFRQ;
+        enqueue_no_overwrite( &comm_receive_queue, (uint8_t)(RS485_UART->RDR & 0xff) );//読めてない？
+        RS485_UART->RQR |= USART_RQR_TXFRQ;
         is_received = 1;
     }
     // error detected
@@ -755,7 +779,7 @@ void send_mode_broadcast_data(COM_MP_TO_SV * mp_sv, uint8_t sv_num, uint8_t mode
 
 
     //送信
-    USART_TypeDef *UARTx = SCI_COMM_UART;
+    USART_TypeDef *UARTx = RS485_UART;
     uint32_t timeout_count = 0;
     const uint32_t TIMEOUT_COUNT_MAX = 10000;
 
@@ -829,7 +853,7 @@ void send_cmd_broadcast_data(COM_MP_TO_SV * mp_sv, uint8_t cmd, uint8_t sv_num, 
 
 
     //送信
-    USART_TypeDef *UARTx = SCI_COMM_UART;
+    USART_TypeDef *UARTx = RS485_UART;
     uint32_t timeout_count = 0;
     const uint32_t TIMEOUT_COUNT_MAX = 10000;
 
@@ -864,7 +888,7 @@ void send_cmd_broadcast_data(COM_MP_TO_SV * mp_sv, uint8_t cmd, uint8_t sv_num, 
 
 void send_status( COM_SV_TO_MP * sv_mp )
 {
-    USART_TypeDef *UARTx = SCI_COMM_UART;
+    USART_TypeDef *UARTx = RS485_UART;
     uint32_t timeout_count = 0;
     const uint32_t TIMEOUT_COUNT_MAX = 10000;
 
