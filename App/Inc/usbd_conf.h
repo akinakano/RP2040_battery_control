@@ -31,7 +31,6 @@
 #include "main.h"
 #include "stm32h7xx.h"
 #include "stm32h7xx_hal.h"
-#include "sci.h"
 
 #define USBD_MAX_NUM_INTERFACES     1U
 #define USBD_MAX_NUM_CONFIGURATION     1U
@@ -49,25 +48,25 @@
 #define USBD_Delay          HAL_Delay
 
 #if (USBD_DEBUG_LEVEL > 0)
-#define USBD_UsrLog(...)    SCI_printf(__VA_ARGS__);\
-                            SCI_printf("\n");
+#define USBD_UsrLog(...)    printf(__VA_ARGS__);\
+                            printf("\n");
 #else
 #define USBD_UsrLog(...)
 #endif /* (USBD_DEBUG_LEVEL > 0U) */
 
 #if (USBD_DEBUG_LEVEL > 1)
 
-#define USBD_ErrLog(...)    SCI_printf("ERROR: ");\
-                            SCI_printf(__VA_ARGS__);\
-                            SCI_printf("\n");
+#define USBD_ErrLog(...)    printf("ERROR: ");\
+                            printf(__VA_ARGS__);\
+                            printf("\n");
 #else
 #define USBD_ErrLog(...)
 #endif /* (USBD_DEBUG_LEVEL > 1U) */
 
 #if (USBD_DEBUG_LEVEL > 2)
-#define USBD_DbgLog(...)    SCI_printf("DEBUG : ");\
-                            SCI_printf(__VA_ARGS__);\
-                            SCI_printf("\n");
+#define USBD_DbgLog(...)    printf("DEBUG : ");\
+                            printf(__VA_ARGS__);\
+                            printf("\n");
 #else
 #define USBD_DbgLog(...)
 #endif /* (USBD_DEBUG_LEVEL > 2U) */

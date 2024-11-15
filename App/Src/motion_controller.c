@@ -5,7 +5,6 @@
 #include "comm_mpsv.h"
 #include "comm_apmp.h"
 #include "tim.h"
-#include "gpio.h"
 
 #include <stdbool.h>
 #include "HW_type.h"
