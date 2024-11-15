@@ -2,6 +2,7 @@
 #include    <ctype.h>
 #include    <stdarg.h>
 #include    "comm_battery.h"
+#include    "main.h"
 
 extern SMBUS_HandleTypeDef hsmbus1;
 static int SMBUS_Status = 1;
@@ -27,7 +28,26 @@ static struct BatteryCommands_st BatteryCommands[] = {
   { 0xff, 0 }, // Terminate
 };
 
-static void comm_battery_Init() {
+void comm_battery_init(void) {
+
+  hsmbus1.Instance = I2C1;
+  hsmbus1.Init.Timing = 0x307075B1;
+  hsmbus1.Init.AnalogFilter = SMBUS_ANALOGFILTER_ENABLE;
+  hsmbus1.Init.OwnAddress1 = 2;
+  hsmbus1.Init.AddressingMode = SMBUS_ADDRESSINGMODE_7BIT;
+  hsmbus1.Init.DualAddressMode = SMBUS_DUALADDRESS_DISABLE;
+  hsmbus1.Init.OwnAddress2 = 0;
+  hsmbus1.Init.OwnAddress2Masks = SMBUS_OA2_NOMASK;
+  hsmbus1.Init.GeneralCallMode = SMBUS_GENERALCALL_DISABLE;
+  hsmbus1.Init.NoStretchMode = SMBUS_NOSTRETCH_DISABLE;
+  hsmbus1.Init.PacketErrorCheckMode = SMBUS_PEC_DISABLE;
+  hsmbus1.Init.PeripheralMode = SMBUS_PERIPHERAL_MODE_SMBUS_HOST;
+  hsmbus1.Init.SMBusTimeout = 0x000085B8;
+  if (HAL_SMBUS_Init(&hsmbus1) != HAL_OK) Error_Handler();
+  if (HAL_SMBUS_ConfigDigitalFilter(&hsmbus1, 0) != HAL_OK) Error_Handler();
+}
+
+static void Battery_CFET_ON() {
 
   CommandSeq = 0;
   BatteryStatus.ValidFlag = 0;
@@ -60,7 +80,7 @@ static void comm_battery_Init() {
 
 void Comm_Battery_Handler() {
 
-  if(SMBUS_Status == 1) comm_battery_Init();
+  if(SMBUS_Status == 1) Battery_CFET_ON();
   if(SMBUS_Status != 2) return;
   CommandSeq = 0;
   ByteOffset = 0;
