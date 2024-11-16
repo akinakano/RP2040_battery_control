@@ -18,7 +18,7 @@
 #include "main.h"
 #include "usbd_core.h"
 #include "usb.h"
-#include "tim.h"
+#include "timer.h"
 #include "nvic.h"
 #include "power_control.h"
 #include "console.h"
@@ -53,8 +53,7 @@ int main(void) {
   PowerControl_Init();
   USB_DEVICE_Init();
   comm_battery_init();
-  TIM3_Init();
-  TIM4_Init();
+  Timer_Init();
   comm_mpsv_Init();
   icm42688_Initialize();
   NVIC_Init();

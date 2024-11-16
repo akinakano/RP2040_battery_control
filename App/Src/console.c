@@ -6,7 +6,6 @@
 #include    <ctype.h>
 #include    <stdarg.h>
 #include    <stm32h747xx.h>
-#include    "tim.h"
 #include    "console.h"
 #include    "util.h"
 

@@ -8,7 +8,6 @@
 #include "imu_icm42688.h"
 #include "comm_apmp.h"
 #include "comm_battery.h"
-#include "tim.h"
 #include "power_control.h"
 #include "vqfInstance.h"
 

@@ -4,7 +4,7 @@
 #include "imu_icm42688.h"
 #include "comm_mpsv.h"
 #include "comm_apmp.h"
-#include "tim.h"
+#include "timer.h"
 
 #include <stdbool.h>
 #include "HW_type.h"

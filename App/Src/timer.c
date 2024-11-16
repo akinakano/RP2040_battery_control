@@ -2,13 +2,22 @@
 #include <stdbool.h>
 #include <stm32h747xx.h>
 
-#include "tim.h"
+#include "timer.h"
 #include "comm_apmp.h"
 #include "power_control.h"
 #include "comm_battery.h"
 #include "motion_controller.h"
 
-void TIM3_Init(void) { // 100Hz interval
+static void TIM3_Init(void);
+static void TIM4_Init(void);
+
+void Timer_Init(void) {
+
+  TIM3_Init();
+  TIM4_Init();
+}
+
+static void TIM3_Init(void) { // 100Hz interval
 
   RCC->APB1LENR |= RCC_APB1LENR_TIM3EN;
   TIM3->CR1 |= TIM_CR1_CEN | TIM_CR1_ARPE;
@@ -37,7 +46,7 @@ void TIM3_IRQHandler(void) { // 100Hz
   hz_internal_count++;
 }
 
-void TIM4_Init(void) { // motion control interval (high priorirty)
+static void TIM4_Init(void) { // motion control interval (high priorirty)
 
   RCC->APB1LENR |= RCC_APB1LENR_TIM4EN;
   TIM4->CR1 |= TIM_CR1_CEN | TIM_CR1_ARPE;

@@ -7,7 +7,7 @@
 //#include "basicvqf.hpp"
 #include "vqf.hpp"
 #include <math.h>
-#include "tim.h"
+#include "timer.h"
 
 /*------------------------------------------------------------------------------*/
 /*  Macro Definition                                                            */
