@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include "imu_icm42688.h"
 #include "main.h"
+#include "HW_type.h"
 
 #define ICM_ACC_FSR            (16)      /* +/-[g]   */
 #define ICM_GYR_FSR            (1000)    /* +/-[dps] */
@@ -491,7 +492,11 @@ void icm42688_Initialize() {
   HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 
   //SPI1_CS PA15
+#ifdef FCX_1
+  GPIOA->MODER = ((uint32_t)(GPIOA->MODER) & ~GPIO_MODER_MODE4_Msk) | (1 << GPIO_MODER_MODE4_Pos);
+#else
   GPIOA->MODER = ((uint32_t)(GPIOA->MODER) & ~GPIO_MODER_MODE15_Msk) | (1 << GPIO_MODER_MODE15_Pos);
+#endif
 
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
@@ -520,8 +525,11 @@ void icm42688_Initialize() {
   // Spi Info.
   imu_spi_info[setidx].hspi     = &hspi1;
   imu_spi_info[setidx].hcs_port = GPIOA;
+#ifdef FCX_1
+  imu_spi_info[setidx].cs_pin   = GPIO_PIN_4;
+#else
   imu_spi_info[setidx].cs_pin   = GPIO_PIN_15;
-
+#endif
   // Dma Info.
   dma_info[setidx].hspi = &hspi1;
   dma_info[setidx].transmit_flag = false;
@@ -537,8 +545,11 @@ void icm42688_Initialize() {
   HAL_SPI_RegisterCallback(&hspi1, HAL_SPI_TX_RX_COMPLETE_CB_ID, imu_TxRxCpltCallback);
 
   // Set CS pin to High
+#ifdef FCX_1
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+#else
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_SET);
-
+#endif
   // IMUを4線式SPIに設定
   IMU_SPI_Chip_Set_SPI4(&imu_spi_info[setidx]);
 
@@ -760,13 +771,17 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    /**SPI1 GPIO Configuration
-    PA15 (JTDI)     ------> SPI1_NSS
-    PB3 (JTDO/TRACESWO)     ------> SPI1_SCK
-    PB4 (NJTRST)     ------> SPI1_MISO
-    PB5     ------> SPI1_MOSI
-    */
+    // PA15 (JTDI)     ------> SPI1_NSS
+    // PB3 (JTDO/TRACESWO)     ------> SPI1_SCK
+    // PB4 (NJTRST)     ------> SPI1_MISO
+    // PB5     ------> SPI1_MOSI
+#ifdef FCX_1
+    // PA4             ------> SPI1_NSS
+    GPIO_InitStruct.Pin = GPIO_PIN_4;
+#else
+    // PA15 (JTDI)     ------> SPI1_NSS
     GPIO_InitStruct.Pin = GPIO_PIN_15;
+#endif
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_PULLDOWN;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -850,8 +865,11 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
     PB4 (NJTRST)     ------> SPI1_MISO
     PB5     ------> SPI1_MOSI
     */
+#ifdef FCX_1
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_4);
+#else
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_15);
-
+#endif
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5);
 
     /* SPI1 DMA DeInit */

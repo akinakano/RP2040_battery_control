@@ -2,24 +2,15 @@
 #include "comm_mpsv.h"
 #include "motion_controller.h"
 #include "crc8.h"
-
-#define USART_ICR_ALL ( USART_ICR_PECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_ORECF | USART_ICR_IDLECF\
-                        | USART_ICR_TXFECF | USART_ICR_TCCF | USART_ICR_TCBGTCF | USART_ICR_LBDCF | USART_ICR_CTSCF \
-                        | USART_ICR_RTOCF | USART_ICR_EOBCF | USART_ICR_UDRCF | USART_ICR_CMCF | USART_ICR_WUCF )
-
-
-#define UART_RX_BUF_SIZE        (4096)
+#include "HW_type.h"
+#include "rs485.h"
+#include "GPIO.h"
 
 SV_Comm_t sv_data[COMM_SV_NUM];
 
 /***********************
   プライベート変数
 ***********************/
-static uint8_t uart_rx_buf[UART_RX_BUF_SIZE] = {0};
-Queue comm_receive_queue = {0};
-static USART_error_count usart_error_count = {0};
-static uint8_t _mp_sv_current_write = 0;
-static uint8_t _mp_sv_current_read = 1;
 static COM_MP_TO_SV _mp_sv_mode;
 static COM_MP_TO_SV _mp_sv_cmd;
 static COM_SV_TO_MP _sv_mp;
@@ -31,68 +22,31 @@ static STATE_MACHINE state_mcn;
 /***********************
   プロトタイプ宣言
 ***********************/
-void init_queue( Queue* _q, uint8_t* _buf, uint32_t _size );
-//static void init_receive_parser_buff(COM_MP_TO_SV * mp_sv);
 static void init_receive_parser_buff_multi(COM_STATUS * com_st);
-void parser(COM_MP_TO_SV * mp_sv, COM_SV_TO_MP * sv_mp);
-void set_send_status_data(COM_SV_TO_MP * sv_mp, COM_STATUS* com_st);
-void send_status( COM_SV_TO_MP * sv_mp );
+static void receive_timeout_callback(void);
+static void receive_command_parse_multi(void);
+static void parser_multi(COM_STATUS * com_st);
 
-extern uint32_t SystemD2Clock;
+void comm_mpsv_Init( void ) {
 
-/***********************
-  関数
-***********************/
-void comm_mpsv_Init( void )
-{
+  rs485_Init();
+  rs485_register_receive_timeout_callback(&receive_timeout_callback);
 
-  // RS-485 initialize
-  // Peripheral clock enable
-  RCC->APB1LENR |= RCC_APB1LENR_UART4EN;
-  // PD0     ------> AF8:UART4_RX
-  // PD1     ------> AF8:UART4_TX
-  // PB14    ------> AF8:UART4_DE
-  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL0_Msk ) | ( 8 << GPIO_AFRL_AFSEL0_Pos ) );
-  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE0_Msk ) | ( 2 << GPIO_MODER_MODE0_Pos ) );
-  GPIOD->PUPDR = ((uint32_t)(GPIOD->PUPDR) & ~GPIO_PUPDR_PUPD0_Msk) | (1 << GPIO_PUPDR_PUPD0_Pos);
-  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL1_Msk ) | ( 8 << GPIO_AFRL_AFSEL1_Pos ) );
-  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE1_Msk ) | ( 2 << GPIO_MODER_MODE1_Pos ) );
-  GPIOB->AFR[1] = ( ( GPIOB->AFR[1] & ~GPIO_AFRH_AFSEL14_Msk ) | ( 8 << GPIO_AFRH_AFSEL14_Pos ) );
-  GPIOB->MODER = ( ( GPIOB->MODER & ~GPIO_MODER_MODE14_Msk ) | ( 2 << GPIO_MODER_MODE14_Pos ) );
-
-  // baudrate : 3000000
-  // parity   : none
-  // word     : 8bit
-  // stop     : 1bit
-  // flow ctrl: none
-  UART4->CR1 &= ~USART_CR1_UE;
-  UART4->CR1 = USART_CR1_FIFOEN | USART_CR1_PEIE | USART_CR1_RXNEIE_RXFNEIE |  USART_CR1_TE | USART_CR1_RE;
-  UART4->CR2 = 0;
-  UART4->CR3 = USART_CR3_DEM | USART_CR3_EIE;
-  UART4->GTPR = 0; // prescaller x1
-  uint32_t usart_div = SystemD2Clock / 2 / RS485_BAUDRATE;
-  UART4->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate設定
-  UART4->CR1 |= USART_CR1_UE;
-
-  init_queue( &comm_receive_queue, uart_rx_buf, UART_RX_BUF_SIZE );
   init_receive_parser_buff_multi( &_com_st[0]);
   init_receive_parser_buff_multi( &_com_st[1]);
-  _mp_sv_current_write = 0;
-  _mp_sv_current_read = 1;
   _com_st_current_write = 0;
   _com_st_current_read = 1;
   state_mcn.status = MP_TO_SV;
   state_mcn.err_info_cnt = 0;
 }
 
-void init_queue( Queue* _q, uint8_t* _buf, uint32_t _size )
-{
-    if ( _q ) {
-        _q->buf = _buf;
-        _q->size = _size;
-        _q->head = 0;
-        _q->tail = 0;
-    }
+static void receive_timeout_callback(void) {
+
+  TEST_PIN(1);
+    receive_command_parse_multi();
+    COM_STATUS * com_st = get_com_status_handle();          // read
+    if(com_st->receive_buff_remained == 1) parser_multi(com_st);
+  TEST_PIN(0);
 }
 
 static void init_receive_parser_buff_multi(COM_STATUS * com_st)
@@ -126,168 +80,6 @@ static void init_receive_parser_buff_multi(COM_STATUS * com_st)
     com_st->receive_status = NO_RECEIVING;
     com_st->received_byte_num = 0;
 }
-
-inline static uint8_t is_usart_isr_error_detected( uint32_t isr )
-{
-    return ( ( isr & ( USART_ISR_ORE | USART_ISR_NE | USART_ISR_FE | USART_ISR_PE ) ) != 0 );
-}
-
-inline static uint8_t is_usart_isr_rx_empty( uint32_t isr )
-{
-    uint8_t ret = 0;
-    uint32_t temp = isr & USART_ISR_RXNE_RXFNE;
-    if (temp == USART_ISR_RXNE_RXFNE) {     //RXNEフラグが立っているのでRXは空ではないのでゼロ
-        ret = 0;
-    } else {            // RXNEフラグが立ってないのでRX空なので1を返す
-        ret = 1;
-    }
-    return ret;
-}
-
-inline static uint8_t is_usart_txFIFO_full( uint32_t isr )
-{
-    uint8_t ret = 0;
-    uint32_t temp = isr & USART_ISR_TXE_TXFNF;  // TXFNF:TXFIFOノットフル. 1ならばフルではないのでTDRに書き込める
-    if (temp == USART_ISR_TXE_TXFNF) {     //TXNEフラグが立っているのでTXは空ではないのでゼロ
-        ret = 0;
-    } else {            // TXNEフラグが立ってないのでRX空なので1を返す
-        ret = 1;
-    }
-    return ret;
-}
-
-uint8_t is_transmit_completed( uint32_t isr )
-{
-    return ((isr & USART_ISR_TC) != 0);
-}
-
-uint8_t is_queue_empty( const Queue* _q )
-{
-    return (_q->head == _q->tail);
-}
-
-uint8_t is_queue_full( const Queue* _q )
-{
-    uint8_t is_full = 0;
-    // tailの次がheadだったらfullと判定。ただしtailがキューの最後だったら0に戻す。
-    uint16_t temp_next_tail = _q->tail + 1;
-    if (temp_next_tail == _q->size) {
-        temp_next_tail = 0;
-    }
-    if (temp_next_tail == _q->head) {
-        is_full = 1;
-    } else {
-        is_full = 0;
-    }
-    return is_full;
-}
-
-uint8_t enqueue_no_overwrite( Queue* _q, uint8_t val )
-{
-    // キューがいっぱいで無ければキューに格納。いっぱいの時は破棄。
-    if ( !is_queue_full(_q) ) {
-        _q->buf[_q->tail] = val;
-        // tailを更新する。キューサイズを超えたら0も戻す。(リングバッファ)
-        _q->tail++;
-        if (_q->tail == _q->size) {
-            _q->tail = 0;
-        }
-        return 1;
-    }
-    return 0;
-}
-
-uint8_t dequeue( Queue* _q, uint8_t* val )
-{
-    if ( val && !is_queue_empty(_q) ) {
-        *val = _q->buf[_q->head];
-        // headを更新する。キューサイズを超えたら0も戻す。(リングバッファ)
-        _q->head++;
-        if (_q->head == _q->size) {
-            _q->head = 0;
-        }
-        return 1;
-    }
-    return 0;
-}
-
-static void USARTx_ISR_error_detected( uint32_t error_register )
-{
-    USART_TypeDef *UARTx = RS485_UART;
-    if (error_register & USART_ISR_FE) {
-        usart_error_count.framing_error++;
-    }
-    if (error_register & USART_ISR_PE) {
-        usart_error_count.parity_error++;
-    }
-    if (error_register & USART_ISR_ORE) {
-        usart_error_count.overrun_error++;
-
-        // Receive control disable
-        NVIC_DisableIRQ(RS485_IRQn);
-        UARTx->CR1 &= (~USART_CR1_RE);      // Receive disable
-
-        // Receive FIFO clear ( RFCLR )
-        UARTx->RQR |= USART_RQR_RXFRQ;
-
-        // 割り込みフラグをクリアする
-        UARTx->ICR |= USART_ICR_ALL;
-
-        // Receive control enable
-        UARTx->CR1 |= USART_CR1_RE;    // Receive enable
-
-        uint16_t timeout_count = 0;
-        const uint16_t TIMEOUT_COUNT_MAX = 100;
-        while (0 == (( UARTx->ISR ) & USART_ISR_REACK)) {  // RE wait
-            if ( timeout_count++ >= TIMEOUT_COUNT_MAX ) {
-                break;
-            }
-        }
-        NVIC_EnableIRQ(RS485_IRQn);
-    }
-    usart_error_count.is_error = 1;
-}
-
-/********************************************************
-  上流通信のUARTのRX FIFOにデータが入るとかかる割り込み処理
-********************************************************/
-void MP_COMM_IrqHandler(void) {
-
-    uint32_t isr = 0;
-    uint8_t is_received = 0;
-    uint8_t is_error = 0;
-    uint32_t timeout_count = 0;
-    const uint32_t TIMEOUT_COUNT_MAX = 1000;
-
-    while ( timeout_count++ < TIMEOUT_COUNT_MAX ) {
-        isr = RS485_UART->ISR;
-
-        // 割り込みフラグをクリアする
-        RS485_UART->ICR |= USART_ICR_ALL;
-
-        if ( (is_error = is_usart_isr_error_detected(isr)) ) {
-            break;
-        }
-
-        //RXの受信が無い(RXNEフラグが立っていない)ならば抜ける
-        if ( is_usart_isr_rx_empty(isr) ) {
-            break;
-        }
-        //RXに受信しているのでキューに積む
-        enqueue_no_overwrite( &comm_receive_queue, (uint8_t)(RS485_UART->RDR & 0xff) );//読めてない？
-        RS485_UART->RQR |= USART_RQR_TXFRQ;
-        is_received = 1;
-    }
-    // error detected
-    if ( is_error ) {
-        USARTx_ISR_error_detected( isr );
-    }
-    if ( is_received ) {
-        // 拡張割り込みコントローラー(EXTI)でソフト割り込みを発生させる
-        EXTI->SWIER1 |= EXTI_SWIER1_SWIER0;
-    }
-}
-
 
 inline static PACKET_RECEIVE_STATUS next_receive_status_multi( const COM_STATUS* com_st )
 {
@@ -333,7 +125,8 @@ inline static PACKET_RECEIVE_STATUS receive_byte_multi( COM_STATUS* com_st )
         init_receive_parser_buff_multi( com_st );
     }
 
-    com_st->received_byte_num += dequeue( &comm_receive_queue, &com_st->buff[com_st->received_byte_num] );
+    int d = rs485_readByte();
+    if(d >= 0) com_st->buff[com_st->received_byte_num++] = d;
     return ( com_st->receive_status = next_receive_status_multi( com_st ) );
 }
 
@@ -596,9 +389,9 @@ inline static void parse_command_crc_multi( COM_STATUS* com_st )
 /**************************************
  バスに接続されたSV通信の受信対応に拡張
 ***************************************/
-void receive_command_parse_multi(void)
+static void receive_command_parse_multi(void)
 {
-    while ( !is_queue_empty( &comm_receive_queue ) ) {
+    while (rs485_receivedLength()) {
         switch ( receive_byte_multi( &_com_st[_com_st_current_write] ) ) {
             case NO_RECEIVING:
                 break;
@@ -640,7 +433,6 @@ void receive_command_parse_multi(void)
         }
     }
 }
-
 
 void parser_multi_mp_sv(COM_STATUS * com_st)
 {
@@ -719,7 +511,7 @@ void parser_multi_sv_mp(COM_STATUS * com_st)
     com_st->receive_buff_remained = 0;
 }
 
-void parser_multi(COM_STATUS * com_st)
+static void parser_multi(COM_STATUS * com_st)
 {
     int16_t max_count_crc_err = 10;
     static int16_t count_continuous_crc_err = 0;
@@ -778,38 +570,7 @@ void send_mode_broadcast_data(COM_MP_TO_SV * mp_sv, uint8_t sv_num, uint8_t mode
     mp_sv->buff[HEADER_REQ_STATUS + sv_num + 1] = mp_sv->crc;
 
 
-    //送信
-    USART_TypeDef *UARTx = RS485_UART;
-    uint32_t timeout_count = 0;
-    const uint32_t TIMEOUT_COUNT_MAX = 10000;
-
-    // TE (Transmit Enable)をセットすることでidleフレームを送信
-    UARTx->CR1 |= USART_CR1_TE;
-
-    // データ長だけTDRに書き込む。データはFIFOに積まれる。
-    for (int i = 0; i < 5 + sv_num; i++) {
-        // while (UART_FLAG_TXFNF != ((UARTx->ISR) & UART_FLAG_TXFNF)) {
-        while ( is_usart_txFIFO_full(UARTx->ISR) ) {
-            timeout_count++;
-            if ( timeout_count > TIMEOUT_COUNT_MAX ) {
-                timeout_count = 0;
-                break;
-            }
-        }
-        UARTx->TDR = mp_sv->buff[i];
-    }
-
-    // 全てのデータをTDRに書いたらTC (Transmit Complete)が1になるまで待つ
-    timeout_count = 0;
-    while (!is_transmit_completed(UARTx->ISR)) {
-        timeout_count++;
-        if ( timeout_count > TIMEOUT_COUNT_MAX) {
-            break;
-        }
-    }
-
-    // TE をクリアすることで送信を停止
-    UARTx->CR1 &= (~USART_CR1_TE);
+    rs485_send(mp_sv->buff, 5 + sv_num);
 }
 
 void send_cmd_broadcast_data(COM_MP_TO_SV * mp_sv, uint8_t cmd, uint8_t sv_num, int16_t param[], uint8_t req_status)
@@ -851,106 +612,5 @@ void send_cmd_broadcast_data(COM_MP_TO_SV * mp_sv, uint8_t cmd, uint8_t sv_num, 
     mp_sv->crc = calc_crc(mp_sv->buff, 4 + sv_num * 2 + 1 - 1);
     mp_sv->buff[HEADER_REQ_STATUS + sv_num * 2 + 1] = mp_sv->crc;
 
-
-    //送信
-    USART_TypeDef *UARTx = RS485_UART;
-    uint32_t timeout_count = 0;
-    const uint32_t TIMEOUT_COUNT_MAX = 10000;
-
-    // TE (Transmit Enable)をセットすることでidleフレームを送信
-    UARTx->CR1 |= USART_CR1_TE;
-
-    // データ長だけTDRに書き込む。データはFIFOに積まれる。
-    for (int i = 0; i < 5 + sv_num * 2; i++) {
-        // while (UART_FLAG_TXFNF != ((UARTx->ISR) & UART_FLAG_TXFNF)) {
-        while ( is_usart_txFIFO_full(UARTx->ISR) ) {
-            timeout_count++;
-            if ( timeout_count > TIMEOUT_COUNT_MAX ) {
-                timeout_count = 0;
-                break;
-            }
-        }
-        UARTx->TDR = mp_sv->buff[i];
-    }
-
-    // 全てのデータをTDRに書いたらTC (Transmit Complete)が1になるまで待つ
-    timeout_count = 0;
-    while (!is_transmit_completed(UARTx->ISR)) {
-        timeout_count++;
-        if ( timeout_count > TIMEOUT_COUNT_MAX) {
-            break;
-        }
-    }
-
-    // TE をクリアすることで送信を停止
-    UARTx->CR1 &= (~USART_CR1_TE);
-}
-
-void send_status( COM_SV_TO_MP * sv_mp )
-{
-    USART_TypeDef *UARTx = RS485_UART;
-    uint32_t timeout_count = 0;
-    const uint32_t TIMEOUT_COUNT_MAX = 10000;
-
-    // TE (Transmit Enable)をセットすることでidleフレームを送信
-    UARTx->CR1 |= USART_CR1_TE;
-
-    // データ長だけTDRに書き込む。データはFIFOに積まれる。
-    for (int i = 0; i < SEND_STATUS_LEN; i++) {
-        // while (UART_FLAG_TXFNF != ((UARTx->ISR) & UART_FLAG_TXFNF)) {
-        while ( is_usart_txFIFO_full(UARTx->ISR) ) {
-            timeout_count++;
-            if ( timeout_count > TIMEOUT_COUNT_MAX ) {
-                timeout_count = 0;
-                break;
-            }
-        }
-        UARTx->TDR = sv_mp->buff[i];
-    }
-
-    // 全てのデータをTDRに書いたらTC (Transmit Complete)が1になるまで待つ
-    timeout_count = 0;
-    while (!is_transmit_completed(UARTx->ISR)) {
-        timeout_count++;
-        if ( timeout_count > TIMEOUT_COUNT_MAX) {
-            break;
-        }
-    }
-
-    sv_mp->send_buff_remained = 0;
-
-    // TE をクリアすることで送信を停止
-    UARTx->CR1 &= (~USART_CR1_TE);
-}
-
-
-/****************************************************************
-  上流通信でRXを受信後にパースするための低優先度のソフト割り込み処理
-****************************************************************/
-COM_STATUS dbg_com[3];
-void MP_COMM_SOFT_IrqHandler(void)
-{
-
-    // Clear EXTI0 interrupt request
-    EXTI->PR1 |= EXTI_PR1_PR0;
-
-    // 低優先度のソフト割り込みの中で受信バッファから値を抽出
-    // 受信完了したらreceive_buff_remainedをセット.Readのreceive_buff_remainedがクリアされていれば面を入れ替え
-    receive_command_parse_multi();
-
-    COM_STATUS * com_st = get_com_status_handle();          // read
-    
-    // static int count = 0;
-    // for(int j = 0; j < 16; j++){
-    //     dbg_com[count].buff[j] = com_st->buff[j];
-    // }
-    // count++;
-    // if(count > 2){
-    //     count = 0;
-    // }
-
-    // 低優先度のソフト割り込みの中でパース処理
-    if (com_st->receive_buff_remained == 1) {
-        parser_multi(com_st);
-    }
+    rs485_send(mp_sv->buff, 5 + sv_num);
 }

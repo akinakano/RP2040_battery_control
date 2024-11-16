@@ -7,5 +7,6 @@
 #define HW_WHEEL (HW_WHEEL_DIFF)
 
 #define BATTERY_INFO
+#define FCX_1
 
 #endif

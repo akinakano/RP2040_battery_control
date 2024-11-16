@@ -5,6 +5,7 @@
 #include "comm_mpsv.h"
 #include "comm_apmp.h"
 #include "timer.h"
+#include "gpio.h"
 
 #include <stdbool.h>
 #include "HW_type.h"
@@ -53,8 +54,8 @@ void BodyVelocityControl_2(void);
 void BodyVelocityControl_3(void);
 
 void MotionControl_IrqHandler(){
-    //PA0_ON();
 
+    TEST_PIN(1);
     //速度指令値代入
     BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)(apmp_data.vx_cmd_l + (uint16_t)(apmp_data.vx_cmd_h << 8)) - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
     BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)(apmp_data.wz_cmd_l + (uint16_t)(apmp_data.wz_cmd_h << 8)) - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
@@ -534,14 +535,14 @@ void MotionControl_IrqHandler(){
     
 
     MC_state.time_count++;
-
     //IMU読み出し用
     icm42688_Int(0);
 
     if(MC_state.time_count % 16 == 0){
         send_data_on_mp_to_ap();//send start
     }
-    //PA0_OFF();
+
+    TEST_PIN(0);
 }
 
 

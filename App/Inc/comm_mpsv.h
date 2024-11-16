@@ -3,10 +3,6 @@
 
 #include "stm32h747xx.h"
 
-#define RS485_UART              (UART4)
-#define RS485_BAUDRATE          (3000000)
-#define RS485_IRQn              (UART4_IRQn)
-#define MP_COMM_IrqHandler      UART4_IRQHandler
 #define MP_COMM_SOFT_IrqHandler EXTI0_IRQHandler
 
 #define MODE_CHANGE_ALL   (0x01)
