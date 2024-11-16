@@ -31,14 +31,10 @@ void debug_menu(void){
     printf("%c\n",c);
     if(c == 'p'){
       while(1){
-          debug_print();
-          c = checkchar();
-
-          if ( c== 'z') {
-            break;
-          }
-
-            debug_command(c);
+        debug_print();
+        c = getcharNonblock();
+        if ( c == 'z') break;
+        debug_command(c);
       }
     }
     if( c == 'b') {

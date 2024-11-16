@@ -11,6 +11,6 @@
 
 void Console_Init();
 int getchar(void);
-int checkchar(void);
+int getcharNonblock(void);
 
 #endif // _CONSOLE_H_

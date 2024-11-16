@@ -1,15 +1,9 @@
-/*******************************
-    Debug用UART通信ライブラリー
-
- *******************************/
 #include    <stdio.h>
 #include    <ctype.h>
 #include    <stdarg.h>
 #include    <stm32h747xx.h>
 #include    "console.h"
 #include    "util.h"
-
-#define     ABS_I(x)    (x < 0 ? (-x) :(x))
 
 static volatile uint8_t rx_buff[RX_BUFF_SIZE];
 static volatile int rx_tail = 0;
@@ -75,7 +69,7 @@ void Console_IRQHandler(void) {
   }
 }
 
-int checkchar(void) {
+int getcharNonblock(void) {
   if(rx_tail != rx_head) {
     int d = rx_buff[rx_head];
     rx_head = (rx_head + 1) % RX_BUFF_SIZE;
@@ -86,7 +80,7 @@ int checkchar(void) {
 
 int getchar(void) {
   int c;
-  while((c = checkchar()) < 0);
+  while((c = getcharNonblock()) < 0);
   if(c == 0x0d) c = '\n';
   return c;
 }
@@ -101,19 +95,14 @@ int putchar(int c) {
     return c;
 }
 
-int _write(int file, char *str, int len) {
+int __io_putchar(int d) {
 
-  for(int i = 0; i < len; i++) {
-    if(str[i] == 0x0a) putchar(0x0d);
-    putchar(str[i]);
-  }
-  return len;
+  if(d == 0x0a) putchar(0x0d);
+  putchar(d);
+  return d;
 }
 
-int _read(int file, char *str, int len) {
+int __io_getchar(void) {
 
-  for(int i = 0; i < len; i++) {
-    *str++ = getchar();
-  }
-  return len;
+  return getchar();
 }
