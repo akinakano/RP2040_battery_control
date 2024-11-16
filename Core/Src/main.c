@@ -23,6 +23,7 @@
 #include "power_control.h"
 #include "console.h"
 #include "debug.h"
+#include "gpio.h"
 #include "comm_mpsv.h"
 #include "comm_apmp.h"
 #include "comm_battery.h"
@@ -47,6 +48,7 @@ int main(void) {
   HAL_HSEM_FastTake(HSEM_ID_0);
   HAL_HSEM_Release(HSEM_ID_0, 0);
 
+  GPIO_Init();
   Console_Init();
   PowerControl_Init();
   USB_DEVICE_Init();
@@ -85,6 +87,7 @@ void SystemClock_Config(void) {
   RCC->APB4ENR |= RCC_APB4ENR_SYSCFGEN;
   uint32_t dummy = RCC->APB4ENR;
   RCC->AHB4ENR |= RCC_AHB4ENR_GPIOGEN |
+                  RCC_AHB4ENR_GPIOFEN |
                   RCC_AHB4ENR_GPIOEEN |
                   RCC_AHB4ENR_GPIODEN |
                   RCC_AHB4ENR_GPIOCEN |
