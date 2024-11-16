@@ -31,19 +31,15 @@
 #include "HW_type.h"
 #include "vqfInstance.h"
 
-
 #ifndef HSEM_ID_0
 #define HSEM_ID_0 (0U) /* HW semaphore 0*/
 #endif
 
-void SystemClock_Config(void);
-static void MPU_Config(void);
+static void SystemConfig(void);
 
 int main(void) {
 
-  MPU_Config();
-  HAL_Init();
-  SystemClock_Config();
+  SystemConfig();
 
   HAL_HSEM_FastTake(HSEM_ID_0);
   HAL_HSEM_Release(HSEM_ID_0, 0);
@@ -62,26 +58,36 @@ int main(void) {
   while (1) debug_menu();
 }
 
-void MPU_Config(void) {
+static void SystemConfig(void) {
 
-  MPU_Region_InitTypeDef MPU_InitStruct = {0};
-  HAL_MPU_Disable();
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.BaseAddress = 0x0;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-  MPU_InitStruct.SubRegionDisable = 0x87;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
-  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
-}
+  // MPU Config
+  __DMB();
+  SCB->SHCSR &= ~SCB_SHCSR_MEMFAULTENA_Msk;
+  MPU->CTRL = 0;
 
-void SystemClock_Config(void) {
+  MPU->RNR = MPU_REGION_NUMBER0;
+  MPU->RASR &= ~MPU_RASR_ENABLE_Msk;
+  MPU->RBAR = 0x00000000;
+  MPU->RASR = (MPU_INSTRUCTION_ACCESS_DISABLE << MPU_RASR_XN_Pos)   |
+              (MPU_TEX_LEVEL0                 << MPU_RASR_TEX_Pos)  |
+              (MPU_ACCESS_SHAREABLE           << MPU_RASR_S_Pos)    |
+              (MPU_ACCESS_NOT_CACHEABLE       << MPU_RASR_C_Pos)    |
+              (MPU_ACCESS_NOT_BUFFERABLE      << MPU_RASR_B_Pos)    |
+              (0x87                           << MPU_RASR_SRD_Pos)  |
+              (MPU_REGION_SIZE_4GB            << MPU_RASR_SIZE_Pos) |
+              (MPU_REGION_ENABLE             << MPU_RASR_ENABLE_Pos);
+
+  MPU->CTRL = MPU_PRIVILEGED_DEFAULT | MPU_CTRL_ENABLE_Msk;
+  SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
+  __DSB();
+  __ISB();
+
+  // SystemClock Config
+  HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+  uint32_t common_system_clock = HAL_RCC_GetSysClockFreq() >> ((D1CorePrescTable[(RCC->D1CFGR & RCC_D1CFGR_D1CPRE)>> RCC_D1CFGR_D1CPRE_Pos]) & 0x1FU);
+  SystemD2Clock = (common_system_clock >> ((D1CorePrescTable[(RCC->D1CFGR & RCC_D1CFGR_HPRE)>> RCC_D1CFGR_HPRE_Pos]) & 0x1FU));
+  SystemCoreClock = common_system_clock;
+  HAL_InitTick(TICK_INT_PRIORITY);
 
   RCC->APB4ENR |= RCC_APB4ENR_SYSCFGEN;
   uint32_t dummy = RCC->APB4ENR;
@@ -94,15 +100,21 @@ void SystemClock_Config(void) {
                   RCC_AHB4ENR_GPIOAEN;
   dummy = RCC->AHB4ENR;
 
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  PWR->CR3 = ((uint32_t)PWR->CR3 & ~PWR_SUPPLY_CONFIG_MASK) | PWR_SMPS_1V8_SUPPLIES_LDO;
 
-  // Configure the main internal regulator output voltage
-  HAL_PWREx_ConfigSupply(PWR_SMPS_1V8_SUPPLIES_LDO);
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
+  uint32_t tickstart = HAL_GetTick ();
+  while((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) != PWR_CSR1_ACTVOSRDY) {
+    if((HAL_GetTick () - tickstart) > 1000U) Error_Handler();
+  }
+
+  PWR->D3CR = ((uint32_t)PWR->D3CR & PWR_D3CR_VOS) | PWR_REGULATOR_VOLTAGE_SCALE1;
+  dummy = PWR->D3CR;
+  SYSCFG->PWRCR |= SYSCFG_PWRCR_ODEN;
+  dummy = SYSCFG->PWRCR;
+  while((PWR->D3CR & PWR_D3CR_VOSRDY) != PWR_D3CR_VOSRDY);
 
   // Initializes the RCC Oscillators according to the specified parameters
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -115,9 +127,10 @@ void SystemClock_Config(void) {
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
   RCC_OscInitStruct.PLL.PLLFRACN = 0;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) Error_Handler();
+  if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) Error_Handler();
 
   // Initializes the CPU, AHB and APB buses clocks
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2
                               |RCC_CLOCKTYPE_D3PCLK1|RCC_CLOCKTYPE_D1PCLK1;
@@ -129,7 +142,7 @@ void SystemClock_Config(void) {
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) Error_Handler();
+  if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) Error_Handler();
 
   RCC->AHB4ENR |= RCC_AHB4ENR_HSEMEN;
   dummy = RCC->AHB4ENR;
