@@ -15,23 +15,6 @@ static void (*receiveTimeoutCallback)(void) = NULL;
 void rs485_Init(void) {
 
   RCC->APB1LENR |= RCC_APB1LENR_UART4EN;
-  // PD0     ------> AF8:UART4_RX
-  // PD1     ------> AF8:UART4_TX
-  // PB14    ------> AF8:UART4_DE
-  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL0_Msk ) | ( 8 << GPIO_AFRL_AFSEL0_Pos ) );
-  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE0_Msk ) | ( 2 << GPIO_MODER_MODE0_Pos ) );
-  GPIOD->PUPDR = ((uint32_t)(GPIOD->PUPDR) & ~GPIO_PUPDR_PUPD0_Msk) | (1 << GPIO_PUPDR_PUPD0_Pos);
-  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL1_Msk ) | ( 8 << GPIO_AFRL_AFSEL1_Pos ) );
-  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE1_Msk ) | ( 2 << GPIO_MODER_MODE1_Pos ) );
-#ifdef FCX_1
-  // PA15    ------> AF8:UART4_DE
-  GPIOA->AFR[1] = ( ( GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL15_Msk ) | ( 8 << GPIO_AFRH_AFSEL15_Pos ) );
-  GPIOA->MODER = ( ( GPIOA->MODER & ~GPIO_MODER_MODE15_Msk ) | ( 2 << GPIO_MODER_MODE15_Pos ) );
-#else
-  // PB14    ------> AF8:UART4_DE
-  GPIOB->AFR[1] = ( ( GPIOB->AFR[1] & ~GPIO_AFRH_AFSEL14_Msk ) | ( 8 << GPIO_AFRH_AFSEL14_Pos ) );
-  GPIOB->MODER = ( ( GPIOB->MODER & ~GPIO_MODER_MODE14_Msk ) | ( 2 << GPIO_MODER_MODE14_Pos ) );
-#endif
 
   // baudrate : 3000000
   // parity   : none

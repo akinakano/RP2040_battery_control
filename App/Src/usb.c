@@ -110,10 +110,9 @@ void USB_DEVICE_Init(void) {
 
 void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle) {
 
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
   if(pcdHandle->Instance != USB_OTG_FS) return;
 
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
   PeriphClkInitStruct.PLL3.PLL3M = 25;
   PeriphClkInitStruct.PLL3.PLL3N = 192;
@@ -127,26 +126,7 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle) {
 
   HAL_PWREx_EnableUSBVoltageDetector();
 
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  // PA9     ------> USB_OTG_FS_VBUS
-  // PA11     ------> USB_OTG_FS_DM
-  // PA12     ------> USB_OTG_FS_DP
-  GPIO_InitStruct.Pin = GPIO_PIN_9;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF10_OTG1_FS;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
-
-  HAL_NVIC_SetPriority(OTG_FS_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
 }
 
 void HAL_PCD_MspDeInit(PCD_HandleTypeDef* pcdHandle) {

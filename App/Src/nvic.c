@@ -14,6 +14,18 @@ void NVIC_Init(void) {
     NVIC_SetPriority(TIM4_IRQn, 3);
     NVIC_EnableIRQ(TIM4_IRQn);
 
+    // SPI1 priority 5
+    NVIC_SetPriority(DMA1_Stream0_IRQn, 5);
+    NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+    NVIC_SetPriority(DMA1_Stream1_IRQn, 5);
+    NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+    NVIC_SetPriority(SPI1_IRQn, 6);
+    NVIC_EnableIRQ(SPI1_IRQn);
+
+    // USB-FS priority 8
+    NVIC_SetPriority(OTG_FS_IRQn, 8);
+    NVIC_EnableIRQ(OTG_FS_IRQn);
+
     // SMBUS priority 14
     NVIC_SetPriority(I2C1_EV_IRQn, 14);
     NVIC_EnableIRQ(I2C1_EV_IRQn);
@@ -27,8 +39,4 @@ void NVIC_Init(void) {
     // generic timer 100Hz interval priority 32
     NVIC_SetPriority(TIM3_IRQn, 32);
     NVIC_EnableIRQ(TIM3_IRQn);
-
-    // // Battery SMBUS interval priority 33
-    NVIC_SetPriority(TIM8_UP_TIM13_IRQn, 33);
-    NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);
 }

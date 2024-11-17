@@ -18,13 +18,6 @@ void Console_Init(void) { // DebugUART
 
   // Peripheral clock enable
   RCC->APB1LENR |= RCC_APB1LENR_USART2EN;
-  // PD5      ------> AF7:UART2_TX
-  // PD6      ------> AF7:UART2_RX
-  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL5_Msk ) | ( 7 << GPIO_AFRL_AFSEL5_Pos ) );
-  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE5_Msk ) | ( 2 << GPIO_MODER_MODE5_Pos ) );
-  GPIOD->AFR[0] = ( ( GPIOD->AFR[0] & ~GPIO_AFRL_AFSEL6_Msk ) | ( 7 << GPIO_AFRL_AFSEL6_Pos ) );
-  GPIOD->MODER = ( ( GPIOD->MODER & ~GPIO_MODER_MODE6_Msk ) | ( 2 << GPIO_MODER_MODE6_Pos ) );
-  GPIOD->PUPDR = ((uint32_t)(GPIOD->PUPDR) & ~GPIO_PUPDR_PUPD6_Msk) | (1 << GPIO_PUPDR_PUPD6_Pos);
 
   // baudrate : 115200
   // parity   : none
