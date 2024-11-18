@@ -34,6 +34,10 @@ Dockerに移行した方がいいかも。。。そのうち。。。。
 - xPack GNU Arm Embedded GCC　Ver.13.2.1
   - https://xpack.github.io/tags/arm-none-eabi-gcc/
   - 古いVerだとLinkerでエラーが出る
+- ST-LINK Ver.1.8.0
+  - https://github.com/stlink-org/stlink/releases/tag/v1.8.0
+  - linux, OS-Xの場合はapt, brewでinstallするのが楽
+
 
 
 
