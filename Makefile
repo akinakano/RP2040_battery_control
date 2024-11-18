@@ -15,8 +15,8 @@ CXX := ${CROSS_COMPILE}g++
 LD := ${CROSS_COMPILE}ld
 OBJCOPY := ${CROSS_COMPILE}objcopy
 SIZE := ${CROSS_COMPILE}size
-RM := rm -rf
-MKDIR := mkdir -f
+RM := rm
+MKDIR := mkdir
 VPATH := ${shell find . -path ./test -prune -o \( -name '*.s' -o -name '*.c' -o -name '*.cc' \) -print | sed -e 's:/[^\/]*$$::' | sort -u}
 
 #
@@ -95,23 +95,23 @@ install: all
 	st-flash --reset write ${TARGET_BIN} 0x8000000
 
 clean:
-	rm -rf ${BUILD_DIR}/* *.map *.elf *.bin
+	${RM} -rf ${BUILD_DIR}/* *.map *.elf *.bin
 
 -include ${DEPS}
 
 ${DEPS}:
 
-${BUILD_DIR}:
-	mkdir ${BUILD_DIR}
-
-${BUILD_DIR}/%.o: %.s ${BUILD_DIR}/%.d ${BUILD_DIR}
+${BUILD_DIR}/%.o: %.s ${BUILD_DIR}/%.d
 	echo "ASM: $<"
+	${MKDIR} -p ${BUILD_DIR}
 	${CC} ${ASM_FLAGS} ${DEPFLAGS} -c -o $@ $<
 
-${BUILD_DIR}/%.o: %.c ${BUILD_DIR}/%.d ${BUILD_DIR}
+${BUILD_DIR}/%.o: %.c ${BUILD_DIR}/%.d
 	echo "CC: $<"
+	${MKDIR} -p ${BUILD_DIR}
 	${CC} ${C_FLAGS} ${DEPFLAGS} -c -o $@ $<
 
-${BUILD_DIR}/%.o: %.cc ${BUILD_DIR}/%.d ${BUILD_DIR}
+${BUILD_DIR}/%.o: %.cc ${BUILD_DIR}/%.d
 	echo "C++: $<"
+	${MKDIR} -p ${BUILD_DIR}
 	${CXX} ${CC_FLAGS} ${DEPFLAGS} -c -o $@ $<
