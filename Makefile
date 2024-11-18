@@ -84,6 +84,7 @@ DEPS := ${OBJS:%.o=%.d}
 all: ${TARGET}
 
 ${TARGET}: ${OBJS}
+	echo "LD: $@"
 	${CXX} -o $@ ${OBJS} -mcpu=cortex-m7 -T"${BUILD_BASE_DIR}/STM32H747IITX_FLASH.ld" --specs=nosys.specs -Wl,-Map=${TARGET:%.elf=%.map} -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo
 	${SIZE} $@
