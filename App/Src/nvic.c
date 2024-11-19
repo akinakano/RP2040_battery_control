@@ -22,21 +22,21 @@ void NVIC_Init(void) {
     NVIC_SetPriority(SPI1_IRQn, 6);
     NVIC_EnableIRQ(SPI1_IRQn);
 
-    // USB-FS priority 8
-    NVIC_SetPriority(OTG_FS_IRQn, 8);
+    // USB-FS priority 32
+    NVIC_SetPriority(OTG_FS_IRQn, 32);
     NVIC_EnableIRQ(OTG_FS_IRQn);
 
-    // SMBUS priority 14
-    NVIC_SetPriority(I2C1_EV_IRQn, 14);
+    // SMBUS priority 48
+    NVIC_SetPriority(I2C1_EV_IRQn, 48);
     NVIC_EnableIRQ(I2C1_EV_IRQn);
-    NVIC_SetPriority(I2C1_ER_IRQn, 14);
+    NVIC_SetPriority(I2C1_ER_IRQn, 48);
     NVIC_EnableIRQ(I2C1_ER_IRQn);
 
-    // debug_console priority 16
-    NVIC_SetPriority(USART2_IRQn, 16);
+    // debug_console priority 64
+    NVIC_SetPriority(USART2_IRQn, 64);
     NVIC_EnableIRQ(USART2_IRQn);
 
-    // generic timer 100Hz interval priority 32
-    NVIC_SetPriority(TIM3_IRQn, 32);
+    // generic timer 100Hz interval priority 72
+    NVIC_SetPriority(TIM3_IRQn, 72);
     NVIC_EnableIRQ(TIM3_IRQn);
 }

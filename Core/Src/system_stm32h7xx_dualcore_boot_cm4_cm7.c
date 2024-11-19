@@ -38,10 +38,6 @@
 #include "stm32h7xx.h"
 #include <math.h>
 
-//#define HSE_VALUE    ((uint32_t)25000000)
-//#define CSI_VALUE    ((uint32_t)4000000
-//#define HSI_VALUE    ((uint32_t)64000000)
-
   uint32_t SystemCoreClock = 64000000;
   uint32_t SystemD2Clock = 64000000;
   const  uint8_t D1CorePrescTable[16] = {0, 0, 0, 0, 1, 2, 3, 4, 1, 2, 3, 4, 6, 7, 8, 9};
