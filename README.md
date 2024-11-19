@@ -18,18 +18,31 @@ build toolsをinstallしてPATHをとおしてセットアップします。
 
 
 
-## build環境
+## Docker 環境
+
+docker上にprimo4_buildのイメージがある場合
+
+```bash
+make clean
+make
+```
+
+で``primo4.elf, primo4.bin``が生成されます。
+
+
+
+## local build環境
 
 多分Windowsの場合、WSL2上でやるのがいい気がする
 
-Linux, OS-Xの場合はそのままで大丈夫。
-
-Dockerに移行した方がいいかも。。。そのうち。。。。
+Linux, OS-Xの場合はそのままでも大丈夫。
 
 
 
-## build tools
+### build tools
 
+- Docker環境にはsetup済み
+- localでbuildしたい場合のtools
 - GNU Make 3.81　多分あんまりVerは関係ない
 - xPack GNU Arm Embedded GCC　Ver.13.2.1
   - https://xpack.github.io/tags/arm-none-eabi-gcc/
@@ -41,7 +54,7 @@ Dockerに移行した方がいいかも。。。そのうち。。。。
 
 
 
-## buildの仕方
+### buildの仕方
 
 ``cd ./primo4_mp`` でprimo4_mpのtop directoryに入って
 

@@ -85,7 +85,7 @@ DEPS := ${OBJS:%.o=%.d}
 
 all: build_docker
 
-build: ${TARGET}
+build: ${TARGET_BIN}
 
 ${TARGET}: ${OBJS}
 	echo "LD: $@"
@@ -95,8 +95,10 @@ ${TARGET}: ${OBJS}
 	@echo 'Finished building target: $@'
 	@echo
 
-install: all
+${TARGET_BIN}: {$TARGET}
 	${OBJCOPY} -O binary ${TARGET} ${TARGET_BIN}
+
+install: all
 	st-flash --reset write ${TARGET_BIN} 0x8000000
 
 clean:
