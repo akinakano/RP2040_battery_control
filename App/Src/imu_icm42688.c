@@ -6,7 +6,7 @@
 * 作成者：高木和貴/Shingo.Nishikata(esOL)
 * (C) 2022- Sony Corporation
 *************************************************************************/
-#include <Math.h>
+#include <math.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdbool.h>

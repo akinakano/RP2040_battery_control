@@ -1,5 +1,6 @@
 #include    <stm32h747xx.h>
 #include    <core_cm7.h>
+#include "stm32h7xx_hal.h"
 
 #include "nvic.h"
 

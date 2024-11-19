@@ -15,6 +15,8 @@ CXX := ${CROSS_COMPILE}g++
 LD := ${CROSS_COMPILE}ld
 OBJCOPY := ${CROSS_COMPILE}objcopy
 SIZE := ${CROSS_COMPILE}size
+ARCH := ${shell uname -m | sed -e 's/x86_//'}
+
 RM := rm
 MKDIR := mkdir
 VPATH := ${shell find . -path ./test -prune -o \( -name '*.s' -o -name '*.c' -o -name '*.cc' \) -print | sed -e 's:/[^\/]*$$::' | sort -u}
@@ -81,7 +83,9 @@ DEPS := ${OBJS:%.o=%.d}
 # build
 #
 
-all: ${TARGET}
+all: build_docker
+
+build: ${TARGET}
 
 ${TARGET}: ${OBJS}
 	echo "LD: $@"
@@ -116,3 +120,9 @@ ${BUILD_DIR}/%.o: %.cc ${BUILD_DIR}/%.d
 	echo "C++: $<"
 	${MKDIR} -p ${BUILD_DIR}
 	${CXX} ${CC_FLAGS} ${DEPFLAGS} -c -o $@ $<
+
+build_docker:
+	docker run --volume ${shell pwd}:/src primo4_build /bin/bash -c "cd /src; make build"
+
+docker:
+	docker build ./ --build-arg ARCH=${ARCH} -t primo4_build

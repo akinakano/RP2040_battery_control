@@ -4,7 +4,7 @@
 #include "crc8.h"
 #include "HW_type.h"
 #include "rs485.h"
-#include "GPIO.h"
+#include "gpio.h"
 
 SV_Comm_t sv_data[COMM_SV_NUM];
 
