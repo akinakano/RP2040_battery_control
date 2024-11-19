@@ -13,6 +13,7 @@
 #include "imu_icm42688.h"
 #include "main.h"
 #include "HW_type.h"
+#include "gpio.h"
 
 #define ICM_ACC_FSR            (16)      /* +/-[g]   */
 #define ICM_GYR_FSR            (1000)    /* +/-[dps] */
@@ -173,16 +174,11 @@ static const uint8_t SCA_US_IMU_SPI4_SEND_UI[][2] = {
 
 #define IMU_ACC_ADDR                  (0x1d)
 
-SPI_HandleTypeDef hspi1;
-DMA_HandleTypeDef hdma_spi1_rx;
-DMA_HandleTypeDef hdma_spi1_tx;
+SPI_HandleTypeDef IMU_SPI;
+DMA_HandleTypeDef IMU_DMAC_RX;
+DMA_HandleTypeDef IMU_DMAC_TX;
 
 /* Private variables ---------------------------------------------------------*/
-static ST_IMU_SPI imu_spi_info[IMU_NUM_OF_MAX] = 
-    {
-        {NULL, NULL, 0},
-        {NULL, NULL, 0}
-    };
 
 static ST_DMA_INFO dma_info[IMU_NUM_OF_MAX];
 static EN_IMU_ERR s_en_imu_err[IMU_NUM_OF_MAX] = {EN_IMU_ERR_INI, EN_IMU_ERR_INI};     //IMUエラーステータス
@@ -201,107 +197,49 @@ static uint8_t s_imu_read_transmit_data[16];
 /* static interfaces                                                      */
 /*------------------------------------------------------------------------*/
 
-#if 0
-/**************************************************************************
- * @author  Masayuki.Fukuyama
- * @date    20220310
- * @param   l0_time_ns : wait time 10nsec
- * @return  None
- * @brief   Waiting for 10nsec during operation at 170MHz
- *          1cycle : 0.000000005x = 1 / 170000000 
- * @warning
- * @detail
- *************************************************************************/
-static void imu_spi_Delay_10nsec(int l0_time_ns)
-{
-    while( l0_time_ns > 0){
-        asm("NOP"); asm("NOP");
-        l0_time_ns -= 1;
-    }
-}
-#endif
-
-/**************************************************************************
- * @author  Masayuki.Fukuyama
- * @date    20220310
- * @param   pSpiInfo : Spi information table pointer for Imu
- * @return  None
- * @brief   Turn Off chip selector for SPI communication for imu
- * @warning
- * @detail
- *************************************************************************/
-static void imu_spi_ChipSelector_Off(ST_IMU_SPI *pSpiInfo)
-{
-    // Chip Selector OFF 
-    HAL_GPIO_WritePin(pSpiInfo->hcs_port, pSpiInfo->cs_pin, GPIO_PIN_RESET); 
-
-    // Wait 40 nanoseconds. 
-    //  imu_spi_Delay_10nsec(4);
-}
-
-/**************************************************************************
- * @author  Masayuki.Fukuyama
- * @date    20220310
- * @param   pSpiInfo : Spi information table pointer for Imu
- * @return  None
- * @brief   Turn On chip selector for SPI communication for imu
- * @warning
- * @detail
- *************************************************************************/
-static void imu_spi_ChipSelector_On(ST_IMU_SPI *pSpiInfo)
-{
-    // Chip Selector ON 
-    HAL_GPIO_WritePin(pSpiInfo->hcs_port, pSpiInfo->cs_pin, GPIO_PIN_SET); 
-
-    // Wait 20 nanoseconds. 
-    //  imu_spi_Delay_10nsec(2);
-}
-
 /**********************************************************************//**
  * @author  Kazutaka.Takaki/Shingo.Nishikata
  * @date    %%220714
- * @param   pSpiInfo : Spi information table pointer for Imu
  * @return  void
  * @brief   SPI シングル送信関数
  * @warning フレーム長=16bitが事前設定されていることを期待する。16bit以外では正常動作しない。
  *************************************************************************/
-static void Sv_TSPI_Write_Single(ST_IMU_SPI *pSpiInfo, uint8_t Reg_Addr, uint8_t Reg_value)
+static void Sv_TSPI_Write_Single(uint8_t Reg_Addr, uint8_t Reg_value)
 {
     uint8_t send_cmd[2] = {Reg_Addr, Reg_value};
 
     // Chip Selector OFF 
-    imu_spi_ChipSelector_Off(pSpiInfo);
+    IMU_SPI_CS(0);
 
-    HAL_SPI_Transmit(pSpiInfo->hspi, send_cmd, 2, 10);
+    HAL_SPI_Transmit(&IMU_SPI, send_cmd, 2, 10);
 
-    // Chip Selector ON 
-    imu_spi_ChipSelector_On(pSpiInfo);
+    // Chip Selector ON
+    IMU_SPI_CS(1);
 }
 
 /**********************************************************************//**
  * @author  Kazutaka.Takaki/Shingo.Nishikata
  * @date    %%220714
- * @param   pSpiInfo : Spi information table pointer for Imu
  * @param   register address
  * @return  void
  * @brief   SPI シングル受信関数
  * @warning フレーム長=16bitが事前設定されていることを期待する。16bit以外では正常動作しない。
  * @warning 受信FIFOが空になっていることを期待する。受信FIFOはクリアされる。
  *************************************************************************/
-static uint8_t Sv_TSPI_Read_Single(ST_IMU_SPI *pSpiInfo, uint8_t Reg_Addr)
+static uint8_t Sv_TSPI_Read_Single(uint8_t Reg_Addr)
 {
     uint8_t send_cmd;
     uint8_t recv_data[2];
 
     send_cmd = C_US_IMU_READ | Reg_Addr;
 
-    // Chip Selector OFF 
-    imu_spi_ChipSelector_Off(pSpiInfo);
+    // Chip Selector OFF
+    IMU_SPI_CS(0);
 
-    HAL_SPI_TransmitReceive(pSpiInfo->hspi, (uint8_t *)&send_cmd, (uint8_t *)&recv_data, 2, 10);
+    HAL_SPI_TransmitReceive(&IMU_SPI, (uint8_t *)&send_cmd, (uint8_t *)&recv_data, 2, 10);
 
     // Chip Selector ON 
-    imu_spi_ChipSelector_On(pSpiInfo);
+    IMU_SPI_CS(1);
 
 //  printf("  [Debug]  HAL_SPI_TransmitReceive Read Data : 0x%02x/0x%02x .\r\n",
 //           recv_data[0], recv_data[1]);
@@ -311,43 +249,36 @@ static uint8_t Sv_TSPI_Read_Single(ST_IMU_SPI *pSpiInfo, uint8_t Reg_Addr)
 /**********************************************************************//**
  * @author  Kazutaka.Takaki/Shingo.Nishikata
  * @date    %%220714
- * @param   pSpiInfo : Spi information table pointer for Imu
  * @return  None
  * @brief   IMU 初期化通信用関数
  * @warning
  *************************************************************************/
-static void IMU_SPI_Send_Initial_Settings(ST_IMU_SPI *pSpiInfo)
-{
-    // Chip Selector OFF 
-    imu_spi_ChipSelector_Off(pSpiInfo);
+static void IMU_SPI_Send_Initial_Settings() {
+    // Chip Selector OFF
+    IMU_SPI_CS(0);
 
     /* 初期化設定を送る*/
-    HAL_SPI_Transmit(pSpiInfo->hspi, (uint8_t *)SCA_US_IMU_INIT_SEND_UI, 
+    HAL_SPI_Transmit(&IMU_SPI, (uint8_t *)SCA_US_IMU_INIT_SEND_UI,
             sizeof(SCA_US_IMU_INIT_SEND_UI) / sizeof(SCA_US_IMU_INIT_SEND_UI[0][0]), 10);
 
     // Chip Selector ON 
-    imu_spi_ChipSelector_On(pSpiInfo);
+    IMU_SPI_CS(1);
 }
 
 
 /**********************************************************************//**
  * @author  Kazutaka.Takaki/Shingo.Nishikata
  * @date    %%190128
- * @param   pSpiInfo : Spi information table pointer for Imu
  * @return  None
  * @brief   IMUのSPIをUI側もAUX側も4線式SPIに設定する
  * @detail  SW-RSTの前のコマンド発効、RST後のコマンド発効両方の前に実行が必要
  *************************************************************************/
-static void IMU_SPI_Chip_Set_SPI4(ST_IMU_SPI *pSpiInfo)
-{
-    // Chip Selector OFF 
-    imu_spi_ChipSelector_Off(pSpiInfo);
+static void IMU_SPI_Chip_Set_SPI4() {
 
-    HAL_SPI_Transmit(pSpiInfo->hspi, (uint8_t *)SCA_US_IMU_SPI4_SEND_UI, 
+    IMU_SPI_CS(0);
+    HAL_SPI_Transmit(&IMU_SPI, (uint8_t *)SCA_US_IMU_SPI4_SEND_UI,
             sizeof(SCA_US_IMU_SPI4_SEND_UI), 10);
-
-    // Chip Selector ON 
-    imu_spi_ChipSelector_On(pSpiInfo);
+    IMU_SPI_CS(1);
 
 //  printf("  [Debug]  HAL_SPI_Transmit ret : 0x%02x .\r\n", hal_ret);
 }
@@ -372,33 +303,6 @@ static void imu_int2float(UN_IMU_DATA const * un_imudata, imu_float_data * imu_f
     imu_float->angular_rate_mrads_z = IMU_FROM_FS_TO_mRADS(un_imudata->st_data.ss_gyro_data_z);
 }
 
-#if 0
-/**************************************************************************
- * @author  Masayuki.Fukuyama
- * @date    20220310
- * @param   imu_idx : Index of imu to send and receive
- * @param   pTxData : pointer to transmission data buffer
- * @param   pRxData : pointer to reception data buffer
- * @param   Size : amount of data to be sent
- * @return  None
- * @brief   Sends and receives a large amount of imu data in non-blocking mode using DMA.
- *          References are IMC-42605 Datasheet's 16 page
- *          [SPI TIMING CHARACTERIZATION 4-WIRE SPI MODE]
- * @warning
- * @detail
- *************************************************************************/
-static void imu_SPI_TransmitReceive_DMA(uint16_t imu_idx, uint8_t *pTxData, uint8_t *pRxData, uint16_t Size)
-{
-    // Chip Selector OFF 
-    imu_spi_ChipSelector_Off(&imu_spi_info[imu_idx]);
-
-    /* get IMU value */
-    HAL_SPI_TransmitReceive_DMA(imu_spi_info[imu_idx].hspi,
-                            (uint8_t *)pTxData, pRxData, Size);
-
-}
-#endif
-
 /**************************************************************************
  * @author  Masayuki.Fukuyama
  * @date    20220315
@@ -414,9 +318,8 @@ static void imu_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 
     // Find SPI ch
     for (idx_i=0; idx_i<IMU_NUM_OF_MAX; idx_i++) {
-        if (hspi == imu_spi_info[idx_i].hspi) {
-            // Chip Selector ON 
-            imu_spi_ChipSelector_On(&imu_spi_info[idx_i]);
+        if (hspi == &IMU_SPI) {
+            IMU_SPI_CS(1);
 
             break;
         }
@@ -443,7 +346,7 @@ static uint8_t *icm42688_GetDataInt(uint16_t imu_idx)
     if(true == dma_info[imu_idx].transmit_flag) {
         imu_debug_flag |= 0x01;
         // 受信処理待ち
-        while(HAL_SPI_GetState(imu_spi_info[imu_idx].hspi) != HAL_SPI_STATE_READY){
+        while(HAL_SPI_GetState(&IMU_SPI) != HAL_SPI_STATE_READY){
             imu_debug_flag |= 0x02;
         };
 
@@ -486,40 +389,32 @@ void icm42688_Initialize() {
   uint16_t setidx = 0;
 
   __HAL_RCC_DMA1_CLK_ENABLE();
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 0x0;
-  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  hspi1.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
-  hspi1.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
-  hspi1.Init.TxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
-  hspi1.Init.RxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
-  hspi1.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
-  hspi1.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
-  hspi1.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
-  hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
-  hspi1.Init.IOSwap = SPI_IO_SWAP_DISABLE;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
+  IMU_SPI.Instance = SPI1;
+  IMU_SPI.Init.Mode = SPI_MODE_MASTER;
+  IMU_SPI.Init.Direction = SPI_DIRECTION_2LINES;
+  IMU_SPI.Init.DataSize = SPI_DATASIZE_8BIT;
+  IMU_SPI.Init.CLKPolarity = SPI_POLARITY_LOW;
+  IMU_SPI.Init.CLKPhase = SPI_PHASE_1EDGE;
+  IMU_SPI.Init.NSS = SPI_NSS_SOFT;
+  IMU_SPI.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+  IMU_SPI.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  IMU_SPI.Init.TIMode = SPI_TIMODE_DISABLE;
+  IMU_SPI.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  IMU_SPI.Init.CRCPolynomial = 0x0;
+  IMU_SPI.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  IMU_SPI.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
+  IMU_SPI.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
+  IMU_SPI.Init.TxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
+  IMU_SPI.Init.RxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
+  IMU_SPI.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
+  IMU_SPI.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
+  IMU_SPI.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
+  IMU_SPI.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
+  IMU_SPI.Init.IOSwap = SPI_IO_SWAP_DISABLE;
+  if (HAL_SPI_Init(&IMU_SPI) != HAL_OK) Error_Handler();
 
-  // Spi Info.
-  imu_spi_info[setidx].hspi     = &hspi1;
-  imu_spi_info[setidx].hcs_port = GPIOA;
-#ifdef FCX_1
-  imu_spi_info[setidx].cs_pin   = GPIO_PIN_4;
-#else
-  imu_spi_info[setidx].cs_pin   = GPIO_PIN_15;
-#endif
   // Dma Info.
-  dma_info[setidx].hspi = &hspi1;
+  dma_info[setidx].hspi = &IMU_SPI;
   dma_info[setidx].transmit_flag = false;
   dma_info[setidx].data_buff_no = 0;
 
@@ -530,19 +425,13 @@ void icm42688_Initialize() {
   }
 
   // Set Callback
-  HAL_SPI_RegisterCallback(&hspi1, HAL_SPI_TX_RX_COMPLETE_CB_ID, imu_TxRxCpltCallback);
+  HAL_SPI_RegisterCallback(&IMU_SPI, HAL_SPI_TX_RX_COMPLETE_CB_ID, imu_TxRxCpltCallback);
 
-  // Set CS pin to High
-#ifdef FCX_1
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-#else
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_SET);
-#endif
   // IMUを4線式SPIに設定
-  IMU_SPI_Chip_Set_SPI4(&imu_spi_info[setidx]);
+  IMU_SPI_Chip_Set_SPI4();
 
   // チップID問い合わせ
-  whoamI = Sv_TSPI_Read_Single(&imu_spi_info[setidx], IMU_WHOAMI_ADDRESS);
+  whoamI = Sv_TSPI_Read_Single(IMU_WHOAMI_ADDRESS);
 
   // Debug
 //  printf("    [Debug] whoamI : 0x%02x .\r\n", whoamI);
@@ -554,7 +443,7 @@ void icm42688_Initialize() {
   }
 
   // レジスタ値リセット
-  Sv_TSPI_Write_Single(&imu_spi_info[setidx], IMU_RESET_ADDRESS, IMU_RESET_COMMAND);
+  Sv_TSPI_Write_Single(IMU_RESET_ADDRESS, IMU_RESET_COMMAND);
 
   for(j=0;j<10000;j++){
       asm("nop");
@@ -564,8 +453,8 @@ void icm42688_Initialize() {
   // レジスタ値リセット待ち
   i=0;
   while(1){
-      IMU_SPI_Chip_Set_SPI4(&imu_spi_info[setidx]);  //IMUを4線式SPIに設定(RSTされているため再設定)
-      rst = Sv_TSPI_Read_Single(&imu_spi_info[setidx], IMU_RESET_DONE_ADDRESS);
+      IMU_SPI_Chip_Set_SPI4();  //IMUを4線式SPIに設定(RSTされているため再設定)
+      rst = Sv_TSPI_Read_Single(IMU_RESET_DONE_ADDRESS);
 
       // Debug
 //  printf("    [Debug] rst : 0x%02x .\r\n", rst);
@@ -587,7 +476,7 @@ void icm42688_Initialize() {
   }
 
   /* UI(Main)側の初期設定値を送信*/
-  IMU_SPI_Send_Initial_Settings(&imu_spi_info[setidx]);
+  IMU_SPI_Send_Initial_Settings();
 
 
   //IMU値読み出しアドレスの用意
@@ -611,12 +500,12 @@ void icm42688_Initialize() {
 void icm42688_Int(uint16_t imu_idx) {
 
     // Chip Selector OFF 
-    imu_spi_ChipSelector_Off(&imu_spi_info[imu_idx]);
+    IMU_SPI_CS(0);
 
     unsigned char l_buff_no = dma_info[imu_idx].data_buff_no ^ 0x01;
 
-    HAL_SPI_TransmitReceive_DMA(imu_spi_info[imu_idx].hspi, 
-                                (uint8_t *)s_imu_read_transmit_data, 
+    HAL_SPI_TransmitReceive_DMA(&IMU_SPI,
+                                (uint8_t *)s_imu_read_transmit_data,
                                 (uint8_t *)dma_info[imu_idx].data_Buff[l_buff_no],
                                 DMA_DATASIZE);
 
@@ -711,7 +600,7 @@ EN_IMU_ERR icm42688_GetError(SPI_HandleTypeDef * hspi)
     EN_IMU_ERR ret = EN_IMU_ERR_INI;
 
     for (idx_i=0; idx_i<IMU_NUM_OF_MAX; idx_i++) {
-        if (hspi == imu_spi_info[idx_i].hspi) {
+        if (hspi == &IMU_SPI) {
             ret = s_en_imu_err[idx_i];
             break;
         }
@@ -742,30 +631,30 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
 
   /* SPI1 DMA Init */
   /* SPI1_RX Init */
-  hdma_spi1_rx.Instance = DMA1_Stream0;
-  hdma_spi1_rx.Init.Request = DMA_REQUEST_SPI1_RX;
-  hdma_spi1_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
-  hdma_spi1_rx.Init.PeriphInc = DMA_PINC_DISABLE;
-  hdma_spi1_rx.Init.MemInc = DMA_MINC_ENABLE;
-  hdma_spi1_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-  hdma_spi1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-  hdma_spi1_rx.Init.Mode = DMA_NORMAL;
-  hdma_spi1_rx.Init.Priority = DMA_PRIORITY_LOW;
-  hdma_spi1_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-  if(HAL_DMA_Init(&hdma_spi1_rx) != HAL_OK) Error_Handler();
-  __HAL_LINKDMA(hspi,hdmarx,hdma_spi1_rx);
+  IMU_DMAC_RX.Instance = DMA1_Stream0;
+  IMU_DMAC_RX.Init.Request = DMA_REQUEST_SPI1_RX;
+  IMU_DMAC_RX.Init.Direction = DMA_PERIPH_TO_MEMORY;
+  IMU_DMAC_RX.Init.PeriphInc = DMA_PINC_DISABLE;
+  IMU_DMAC_RX.Init.MemInc = DMA_MINC_ENABLE;
+  IMU_DMAC_RX.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+  IMU_DMAC_RX.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+  IMU_DMAC_RX.Init.Mode = DMA_NORMAL;
+  IMU_DMAC_RX.Init.Priority = DMA_PRIORITY_LOW;
+  IMU_DMAC_RX.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+  if(HAL_DMA_Init(&IMU_DMAC_RX) != HAL_OK) Error_Handler();
+  __HAL_LINKDMA(hspi,hdmarx,IMU_DMAC_RX);
 
   /* SPI1_TX Init */
-  hdma_spi1_tx.Instance = DMA1_Stream1;
-  hdma_spi1_tx.Init.Request = DMA_REQUEST_SPI1_TX;
-  hdma_spi1_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-  hdma_spi1_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-  hdma_spi1_tx.Init.MemInc = DMA_MINC_ENABLE;
-  hdma_spi1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-  hdma_spi1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-  hdma_spi1_tx.Init.Mode = DMA_NORMAL;
-  hdma_spi1_tx.Init.Priority = DMA_PRIORITY_LOW;
-  hdma_spi1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-  if(HAL_DMA_Init(&hdma_spi1_tx) != HAL_OK) Error_Handler();
-  __HAL_LINKDMA(hspi,hdmatx,hdma_spi1_tx);
+  IMU_DMAC_TX.Instance = DMA1_Stream1;
+  IMU_DMAC_TX.Init.Request = DMA_REQUEST_SPI1_TX;
+  IMU_DMAC_TX.Init.Direction = DMA_MEMORY_TO_PERIPH;
+  IMU_DMAC_TX.Init.PeriphInc = DMA_PINC_DISABLE;
+  IMU_DMAC_TX.Init.MemInc = DMA_MINC_ENABLE;
+  IMU_DMAC_TX.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+  IMU_DMAC_TX.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+  IMU_DMAC_TX.Init.Mode = DMA_NORMAL;
+  IMU_DMAC_TX.Init.Priority = DMA_PRIORITY_LOW;
+  IMU_DMAC_TX.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+  if(HAL_DMA_Init(&IMU_DMAC_TX) != HAL_OK) Error_Handler();
+  __HAL_LINKDMA(hspi,hdmatx,IMU_DMAC_TX);
 }

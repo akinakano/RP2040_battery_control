@@ -16,6 +16,11 @@
 #include "imu_common.h"
 #include "stm32h7xx_hal_spi.h"
 
+#define IMU_SPI      hspi1
+#define IMU_DMAC_TX  hdma_spi1_tx
+#define IMU_DMAC_RX  hdma_spi1_rx
+#define IMU_SPI_CS   SPI1_CS
+
 /* 換算用係数 */
 #define IMU_FS_16g_COEFF            (4.882813E-01f)
 #define IMU_FS_8g_COEFF             (2.441406E-01f)

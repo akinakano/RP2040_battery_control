@@ -68,6 +68,23 @@ void GPIO_Init() {
   GPIOF->BSRR   = GPIO_BSRR_BR9;
 }
 
+void SPI1_CS(int d) {
+
+#ifdef FCX_1
+  if(d == 1) {
+    GPIOA->BSRR = GPIO_BSRR_BS4;
+  } else if(d == 0) {
+    GPIOA->BSRR = GPIO_BSRR_BR4;
+  }
+#else
+  if(d == 1) {
+    GPIOA->BSRR = GPIO_BSRR_BS15;
+  } else if(d == 0) {
+    GPIOA->BSRR = GPIO_BSRR_BR15;
+  }
+#endif
+}
+
 void TEST_PIN(int d) {
 
   if(d == 1) {
