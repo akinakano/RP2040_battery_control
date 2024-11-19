@@ -83,7 +83,6 @@ static void SystemConfig(void) {
   __ISB();
 
   // SystemClock Config
-  NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
   uint32_t common_system_clock = HAL_RCC_GetSysClockFreq() >> ((D1CorePrescTable[(RCC->D1CFGR & RCC_D1CFGR_D1CPRE)>> RCC_D1CFGR_D1CPRE_Pos]) & 0x1FU);
   SystemD2Clock = (common_system_clock >> ((D1CorePrescTable[(RCC->D1CFGR & RCC_D1CFGR_HPRE)>> RCC_D1CFGR_HPRE_Pos]) & 0x1FU));
   SystemCoreClock = common_system_clock;

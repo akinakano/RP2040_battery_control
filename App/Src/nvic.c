@@ -6,21 +6,22 @@
 // priority : 0(high)~255(low)
 void NVIC_Init(void) {
 
+    NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+    // SPI1 priority 5
+    NVIC_SetPriority(DMA1_Stream0_IRQn, 0);
+    NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+    NVIC_SetPriority(DMA1_Stream1_IRQn, 0);
+    NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+    NVIC_SetPriority(SPI1_IRQn, 0);
+    NVIC_EnableIRQ(SPI1_IRQn);
+
     // comm_MPSV priority 1
-    NVIC_SetPriority(UART4_IRQn, 1);
+    NVIC_SetPriority(UART4_IRQn, 16);
     NVIC_EnableIRQ(UART4_IRQn);
 
     // motion_controller interval priority  3
-    NVIC_SetPriority(TIM4_IRQn, 3);
+    NVIC_SetPriority(TIM4_IRQn, 20);
     NVIC_EnableIRQ(TIM4_IRQn);
-
-    // SPI1 priority 5
-    NVIC_SetPriority(DMA1_Stream0_IRQn, 5);
-    NVIC_EnableIRQ(DMA1_Stream0_IRQn);
-    NVIC_SetPriority(DMA1_Stream1_IRQn, 5);
-    NVIC_EnableIRQ(DMA1_Stream1_IRQn);
-    NVIC_SetPriority(SPI1_IRQn, 6);
-    NVIC_EnableIRQ(SPI1_IRQn);
 
     // USB-FS priority 32
     NVIC_SetPriority(OTG_FS_IRQn, 32);
