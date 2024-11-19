@@ -15,7 +15,7 @@ CXX := ${CROSS_COMPILE}g++
 LD := ${CROSS_COMPILE}ld
 OBJCOPY := ${CROSS_COMPILE}objcopy
 SIZE := ${CROSS_COMPILE}size
-ARCH := ${shell uname -m | sed -e 's/x86_//'}
+ARCH := ${shell uname -m | sed -e 's/x86_64/x64/'}
 
 RM := rm
 MKDIR := mkdir
@@ -95,7 +95,7 @@ ${TARGET}: ${OBJS}
 	@echo 'Finished building target: $@'
 	@echo
 
-${TARGET_BIN}: {$TARGET}
+${TARGET_BIN}: ${TARGET}
 	${OBJCOPY} -O binary ${TARGET} ${TARGET_BIN}
 
 install: all
