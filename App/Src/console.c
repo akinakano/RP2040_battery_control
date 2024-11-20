@@ -41,13 +41,12 @@ void Console_IRQHandler(void) {
 
   uint32_t isr = CONSOLE_UART->ISR;
   if(isr & USART_ISR_TXFE) {
-    while (tx_tail != tx_head) {
-      if( CONSOLE_UART->ISR & USART_ISR_TXE_TXFNF ) {
-        CONSOLE_UART->TDR = tx_buff[tx_head];
-        tx_head = (tx_head + 1) % TX_BUFF_SIZE;
-      }
+    while(tx_tail != tx_head) {
+      if(!(CONSOLE_UART->ISR & USART_ISR_TXE_TXFNF)) break;
+      CONSOLE_UART->TDR = tx_buff[tx_head];
+      tx_head = (tx_head + 1) % TX_BUFF_SIZE;
     }
-    CONSOLE_UART->CR1 &= ~USART_CR1_TXFEIE;
+    if(tx_tail == tx_head) CONSOLE_UART->CR1 &= ~USART_CR1_TXFEIE;
   }
   if(isr & (USART_ISR_RXFT | USART_ISR_RTOF)) {
     while(CONSOLE_UART->ISR & USART_ISR_RXNE_RXFNE) {
@@ -90,8 +89,8 @@ int putchar(int c) {
 
 int __io_putchar(int d) {
 
-  if(d == 0x0a) putchar(0x0d);
-  putchar(d);
+  if(d == 0x0a) while(putchar(0x0d) < 0);
+  while(putchar(d) < 0);
   return d;
 }
 

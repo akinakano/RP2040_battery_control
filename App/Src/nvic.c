@@ -1,26 +1,27 @@
 #include    <stm32h747xx.h>
 #include    <core_cm7.h>
-#include "stm32h7xx_hal.h"
 
 #include "nvic.h"
 
 // priority : 0(high)~255(low)
 void NVIC_Init(void) {
 
-    NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
-    // SPI1 priority 5
-    NVIC_SetPriority(DMA1_Stream0_IRQn, 0);
+    uint32_t NVIC_PriorityGroup4 = 0x03;
+    NVIC_SetPriorityGrouping(NVIC_PriorityGroup4);
+
+    // SPI1 priority 8
+    NVIC_SetPriority(DMA1_Stream0_IRQn, 8);
     NVIC_EnableIRQ(DMA1_Stream0_IRQn);
-    NVIC_SetPriority(DMA1_Stream1_IRQn, 0);
+    NVIC_SetPriority(DMA1_Stream1_IRQn, 8);
     NVIC_EnableIRQ(DMA1_Stream1_IRQn);
-    NVIC_SetPriority(SPI1_IRQn, 0);
+    NVIC_SetPriority(SPI1_IRQn, 8);
     NVIC_EnableIRQ(SPI1_IRQn);
 
-    // comm_MPSV priority 1
+    // comm_MPSV priority 16
     NVIC_SetPriority(UART4_IRQn, 16);
     NVIC_EnableIRQ(UART4_IRQn);
 
-    // motion_controller interval priority  3
+    // motion_controller interval priority  20
     NVIC_SetPriority(TIM4_IRQn, 20);
     NVIC_EnableIRQ(TIM4_IRQn);
 

@@ -255,7 +255,7 @@ void debug_print(void){
 
     //*/
 
-    printf("\n");
+    printf(" \n");
 
 }
 
