@@ -53,28 +53,31 @@ void debug_menu(void){
 }
 
 void debug_print(void){
-    printf("st %1u %6u %1u %1d ", MC_state.state, MC_state.time_count , state_mp_to_ap, apmp_data.cmd);
+    //printf("st %1u %6u %1u %1d ", MC_state.state, MC_state.time_count , state_mp_to_ap, apmp_data.cmd);
+    printf("st %1u %1u %1d ", MC_state.state, state_mp_to_ap, apmp_data.cmd);
 
     // MP制禦系の表示
 #if 1
-    printf("vraw %6d %6d ", (int)(BVC.vel_cmd_raw[X_AXIS] * 1000.0f), (int)(BVC.vel_cmd_raw[Z_AXIS] * 1800.0f / SMC_PI_F));
+    //printf("vraw %6d %6d ", (int)(BVC.vel_cmd_raw[X_AXIS] * 1000.0f), (int)(BVC.vel_cmd_raw[Z_AXIS] * 1800.0f / SMC_PI_F));
     //printf("vcmd %6d %6d ", (int)(BVC.vel_cmd[X_AXIS] * 1000.0f), (int)(BVC.vel_cmd[Z_AXIS] * 1800.0f / SMC_PI_F));
-    //printf("vref %6d %6d ", (int)(BVC.vel_ref[X_AXIS] * 1000.0f), (int)(BVC.vel_ref[Z_AXIS] * 1800.0f / SMC_PI_F));
-    //printf("vres %6d %6d ", (int)(BVC.vel_res[X_AXIS] * 1000.0f), (int)(BVC.vel_res[Z_AXIS] * 1800.0f / SMC_PI_F));
+    printf("vref %6d %6d ", (int)(BVC.vel_ref[X_AXIS] * 1000.0f), (int)(BVC.vel_ref[Z_AXIS] * 1800.0f / SMC_PI_F));
+    printf("vres %6d %6d ", (int)(BVC.vel_res[X_AXIS] * 1000.0f), (int)(BVC.vel_res[Z_AXIS] * 1800.0f / SMC_PI_F));
+#endif
+
+#if 1
+    // MP内の位置、オドメトリの表示
+    printf("vpos %6d %6d %6d "
+        , (int)(BVC.pos_cmd[X_AXIS] * 1000.0f)
+        , (int)(BVC.pos_cmd[Y_AXIS] * 1000.0f)
+        , (int)(BVC.pos_cmd[Z_AXIS] * 180.0f*1000.0f / SMC_PI_F));
+    printf("odom %6d %6d %6d "
+        , (int)(BVC.pos_res[X_AXIS] * 1000.0f)
+        , (int)(BVC.pos_res[Y_AXIS] * 1000.0f)
+        , (int)(BVC.pos_res[Z_AXIS] * 180.0f*1000.0f / SMC_PI_F)
+        );
 #endif
 
 #if 0
-    // MP内の位置、オドメトリの表示
-    printf("pcmd %6d %6d %6d "
-        , (int)(BVC.pos_cmd[X_AXIS] * 1000.0f)
-        , (int)(BVC.pos_cmd[Y_AXIS] * 1000.0f)
-        , (int)(BVC.pos_cmd[Z_AXIS] * 1800.0f / SMC_PI_F));
-    printf("pres %6d %6d %6d "
-        , (int32_t)(BVC.pos_res[X_AXIS] * 1000.0f)
-        , (int)(BVC.pos_res[Y_AXIS] * 1000.0f)
-        , (int)(BVC.pos_res[Z_AXIS] * 1800.0f / SMC_PI_F)
-        );
-
     printf("bias %4d %6d %6d "
         ,imu_data.calib_count
         ,(int)(imu_data.gyro[Z_AXIS] * 180.0f * 1000.0f / SMC_PI_F)
@@ -114,15 +117,18 @@ void debug_print(void){
         , (int)(imu_data.acc[Y_AXIS] * 1000.0f)
         , (int)(imu_data.acc[Z_AXIS] * 1000.0f));
     printf("gyro %6d %6d %6d "
-        , (int)(imu_data.gyro[X_AXIS] * 1800.0f / SMC_PI_F)
-        , (int)(imu_data.gyro[Y_AXIS] * 1800.0f / SMC_PI_F)
-        , (int)(imu_data.gyro[Z_AXIS] * 1800.0f / SMC_PI_F));
-
+        , (int)(imu_data.gyro[X_AXIS] * 180.0f*1000.0f / SMC_PI_F)
+        , (int)(imu_data.gyro[Y_AXIS] * 180.0f*1000.0f / SMC_PI_F)
+        , (int)(imu_data.gyro[Z_AXIS] * 180.0f*1000.0f / SMC_PI_F));
+    printf("temp %4d "
+        , (int)(imu_data.temp * 10.0f));
+#endif
+#if 0
     printf("gbias %6d "
         , (int)(imu_data.gyro_bias[Z_AXIS] * 180.0f * 1000.0f / SMC_PI_F));
 #endif
 
-#if 0 // -----VQF
+#if 0
     // VQF
     float bias[3];
     vqf_GetBiasEstimate(bias);
@@ -146,9 +152,20 @@ void debug_print(void){
         ,(int)(euler[0] * 18000.0f / SMC_PI_F)
         ,(int)(euler[1] * 18000.0f / SMC_PI_F)
         ,(int)(euler[2] * 18000.0f / SMC_PI_F));
+#else
+    float bias[3];
+    //float quat[4];
+    //float euler[3];
+    vqf_GetBiasEstimate(bias);
+    //vqf_GetQuat6D(quat);
+    //vqf_QuatToEuler(euler, quat);
+    printf("VQF %d %6d "
+        ,vqf_GetRestDetected()
+        ,(int)(bias[2] * 180.0f*1000.0f / SMC_PI_F));
+        //,(int)(euler[2] * 180.0f*1000.0f / SMC_PI_F));
 #endif
 
-#if 0
+#if 1
     // SV系の表示
     printf("SV %1d %1d ", sv_data[0].current_state, sv_data[1].current_state);
     //COM_MP_TO_SV * cmd_mp_sv = get_send_cmd_handle();
@@ -168,9 +185,9 @@ void debug_print(void){
     printf("TREF %6d %6d ", (int16_t)(BVC.t_ref[SV1_FR]*1000),(int16_t)(BVC.t_ref[SV2_FL]*1000));
     //printf("velres %6d %6d ", (int)(sv_res[SV1_FR].vel_res * 100.0f), (int)(sv_res[SV2_FL].vel_res * 100.0f));
     //printf("vctx %6d %6d ", (int)(BVC.v_ref[0]),(int)(BVC.v_ref[1]));
-    printf("IQ %6d %6d ", sv_data[SV1_FR].iq, sv_data[SV2_FL].iq);
+    //printf("IQ %6d %6d ", sv_data[SV1_FR].iq, sv_data[SV2_FL].iq);
     //printf("Isrc %6d %6d ", (int)(sv_res[SV1_FR].iq_res), (int)(sv_res[SV2_FL].iq_res));// 20240521現在、SVからはsrc電流がIqのところに来ている。
-    printf("VOL %6d %6d ", (int)(sv_res[SV1_FR].vdc), (int)(sv_res[SV2_FL].vdc));
+    //printf("VOL %6d %6d ", (int)(sv_res[SV1_FR].vdc), (int)(sv_res[SV2_FL].vdc));
 #endif
 
     /*

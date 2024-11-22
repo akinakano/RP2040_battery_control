@@ -98,6 +98,7 @@ typedef union{
 }imu_union_data;
 
 typedef struct {
+    float temp;
     float acc[3];
     float gyro[3];
     imu_union_data uni_acc[3];
@@ -112,6 +113,8 @@ typedef struct {
     int32_t calib_count;
     float gyro_scale_gain;
     bool  calib_end;
+    float acc_quat[4];
+    float gyro_quat[4];
 }IMU_Data_t;
 
 //sv受信データ
@@ -152,6 +155,7 @@ typedef struct{
     float invtransJaco[3][4];
     float kp[3];
     float omega_ref_adj_y;
+    float omega_ref_prev;
     uint16_t BVC_debug_flag;
 }BODY_VEL_CTRL_t;
 

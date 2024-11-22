@@ -4,8 +4,8 @@
 #include <stdint.h>
 
 #define MP_VERSION_YY  ((uint8_t)24)   //0 - 255
-#define MP_VERSION_MM  ((uint8_t)10)   //0 - 255
-#define MP_VERSION_DD  ((uint8_t)30)   //0 - 255
+#define MP_VERSION_MM  ((uint8_t)11)   //0 - 255
+#define MP_VERSION_DD  ((uint8_t)22)   //0 - 255
 #define MP_VERSION_NN  ((uint8_t)0)   //0 - 255
 
 void Comm_APMP_Rx_Handler(uint8_t* buf, uint32_t len);

@@ -66,6 +66,7 @@ void MotionControl_IrqHandler(){
     imu_float_data l_imu = {0};
     l_imu = icm42688_GetDataFloat();
 
+    imu_data.temp        = l_imu.temp_data;
     imu_data.acc[X_AXIS] = ACC_X_DIRECTION * l_imu.acceleration_mg_x;
     imu_data.acc[Y_AXIS] = ACC_Y_DIRECTION * l_imu.acceleration_mg_y;
     imu_data.acc[Z_AXIS] = ACC_Z_DIRECTION * l_imu.acceleration_mg_z;
@@ -77,7 +78,7 @@ void MotionControl_IrqHandler(){
     BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)(apmp_data.vx_cmd_l + (uint16_t)(apmp_data.vx_cmd_h << 8)) - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
     BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)(apmp_data.wz_cmd_l + (uint16_t)(apmp_data.wz_cmd_h << 8)) - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
 
-    if (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f || fabsf(BVC.vel_cmd_raw[Z_AXIS]) > (0.0001f * SMC_PI_F / 180.0f)){
+    if (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f || fabsf(BVC.vel_cmd_raw[Z_AXIS]) > (0.0001f * SMC_PI_F / 180.0f) || fabsf(BVC.vel_ref[Z_AXIS]) > (3.0f * SMC_PI_F / 180.0f)){
         vqf_SetRestBiasEstEnabled(false);
     } else {
         // 目標速度のクリア
@@ -377,13 +378,22 @@ void MotionControl_IrqHandler(){
     }
 
     if (vqf_GetRestDetected()){
-        // 静止判定時は角速度の指示0でVPOSの角度も修正しない
-        BVC.vel_ref[Z_AXIS] = 0.0f;
+        // 静止判定時は角速度の指示キープでVPOSの角度も修正しない
+        //BVC.vel_ref[Z_AXIS] = 0.0f;
+        BVC.vel_ref[Z_AXIS] = BVC.omega_ref_prev;
+
+        // 静止直前の姿勢で上書き
+        vqf_SetQuat( imu_data.gyro_quat, imu_data.acc_quat);
     }else if (yaw_kp > 0.000001f){
         //BVC.pos_cmd[Z_AXIS] = MC_CLIP_PI((BVC.vel_ref[Z_AXIS] - vel_ref_ff_z) / yaw_kp + BVC.pos_res[Z_AXIS]);
         BVC.pos_cmd[Z_AXIS] = MC_CLIP_PI((BVC.vel_ref[Z_AXIS] - vel_ref_ff_z - BVC.omega_ref_adj_y) / yaw_kp + BVC.pos_res[Z_AXIS]);
+
+        // 姿勢情報を保存
+        vqf_GetQuat( imu_data.gyro_quat, imu_data.acc_quat);
     }
 
+    // 角速度指示を保存
+    BVC.omega_ref_prev = BVC.vel_ref[Z_AXIS];
     // ************************************
 
     //制御処理
@@ -472,7 +482,7 @@ void MotionControl_IrqHandler(){
         case MC_STATE_IDLE:
             cmd[SV1_FR] = 0;
             cmd[SV2_FL] = 0;
-            vqf_ResetQuat();
+            //vqf_ResetQuat();
             send_cmd_broadcast_data(cmd_mp_sv, FORCE_CNTRL_ALL, COMM_SV_NUM, cmd, MOTOR_TEMP);
             if (imu_data.calib_end == false){
                 MC_state.state = MC_STATE_INIT;
@@ -582,6 +592,7 @@ void BodyVelocityControl_3(void){
         BVC.acc_dis_lpf[X_AXIS] = 0.0f;
         BVC.acc_dis_lpf[Y_AXIS] = 0.0f;
         BVC.acc_dis_lpf[Z_AXIS] = 0.0f;
+        vqf_ResetQuat();
         //return;
     }
     else {
