@@ -180,6 +180,8 @@ static void SystemConfig(void) {
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) Error_Handler();
   __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
 
+  RCC->D2CCIP2R = ((uint32_t)(RCC->D2CCIP2R) & ~RCC_D2CCIP2R_I2C123SEL) | RCC_I2C123CLKSOURCE_D2PCLK1;
+
 }
 
 void Error_Handler(void) {
