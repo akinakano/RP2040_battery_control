@@ -101,41 +101,12 @@ __ALIGN_BEGIN uint8_t USBD_StringSerial[USB_SIZ_STRING_SERIAL] __ALIGN_END = {
 // USB device
 void USB_DEVICE_Init(void) {
 
+  HAL_PWREx_EnableUSBVoltageDetector();
   if(USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK) Error_Handler();
   if(USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK) Error_Handler();
   if(USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS) != USBD_OK) Error_Handler();
   if(USBD_Start(&hUsbDeviceFS) != USBD_OK) Error_Handler();
   HAL_PWREx_EnableUSBVoltageDetector();
-}
-
-void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle) {
-
-  if(pcdHandle->Instance != USB_OTG_FS) return;
-
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInitStruct.PLL3.PLL3M = 25;
-  PeriphClkInitStruct.PLL3.PLL3N = 192;
-  PeriphClkInitStruct.PLL3.PLL3P = 4;
-  PeriphClkInitStruct.PLL3.PLL3Q = 4;
-  PeriphClkInitStruct.PLL3.PLL3R = 2;
-  PeriphClkInitStruct.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_0;
-  PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
-  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL3;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) Error_Handler();
-
-  HAL_PWREx_EnableUSBVoltageDetector();
-
-  __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
-}
-
-void HAL_PCD_MspDeInit(PCD_HandleTypeDef* pcdHandle) {
-
-  if(pcdHandle->Instance != USB_OTG_FS) return;
-
-  __HAL_RCC_USB_OTG_FS_CLK_DISABLE();
-  HAL_GPIO_DeInit(GPIOA, GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_12);
-  HAL_NVIC_DisableIRQ(OTG_FS_IRQn);
 }
 
 void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd) {

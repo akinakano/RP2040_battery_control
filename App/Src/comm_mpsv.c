@@ -42,11 +42,9 @@ void comm_mpsv_Init( void ) {
 
 static void receive_timeout_callback(void) {
 
-  TEST_PIN(1);
-    receive_command_parse_multi();
-    COM_STATUS * com_st = get_com_status_handle();          // read
-    if(com_st->receive_buff_remained == 1) parser_multi(com_st);
-  TEST_PIN(0);
+  receive_command_parse_multi();
+  COM_STATUS * com_st = get_com_status_handle();          // read
+  if(com_st->receive_buff_remained == 1) parser_multi(com_st);
 }
 
 static void init_receive_parser_buff_multi(COM_STATUS * com_st)

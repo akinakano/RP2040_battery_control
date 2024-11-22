@@ -28,6 +28,7 @@
 #include "comm_apmp.h"
 #include "comm_battery.h"
 #include "imu_icm42688.h"
+#include "motion_controller.h"
 #include "HW_type.h"
 #include "vqfInstance.h"
 
@@ -52,6 +53,7 @@ int main(void) {
   Timer_Init();
   comm_mpsv_Init();
   icm42688_Init();
+  MotionControl_Init();
   NVIC_Init();
   __enable_irq();
 
@@ -150,11 +152,38 @@ static void SystemConfig(void) {
   int32_t timeout = 0xFFFF;;
   while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
   if(timeout < 0) Error_Handler();
+
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI1;
+  PeriphClkInitStruct.PLL2.PLL2M = 25;
+  PeriphClkInitStruct.PLL2.PLL2N = 400;
+  PeriphClkInitStruct.PLL2.PLL2P = 2;
+  PeriphClkInitStruct.PLL2.PLL2Q = 2;
+  PeriphClkInitStruct.PLL2.PLL2R = 2;
+  PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
+  PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
+  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+  PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) Error_Handler();
+  __HAL_RCC_SPI1_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
+  PeriphClkInitStruct.PLL3.PLL3M = 25;
+  PeriphClkInitStruct.PLL3.PLL3N = 192;
+  PeriphClkInitStruct.PLL3.PLL3P = 4;
+  PeriphClkInitStruct.PLL3.PLL3Q = 4;
+  PeriphClkInitStruct.PLL3.PLL3R = 2;
+  PeriphClkInitStruct.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_0;
+  PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
+  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL3;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) Error_Handler();
+  __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
+
 }
 
 void Error_Handler(void) {
 
-  printf("ErrorHandler");
-//  __disable_irq();
-  while (1);
+  TEST_PF5(1);
+  while(1);
 }

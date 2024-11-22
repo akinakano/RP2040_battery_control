@@ -52,24 +52,30 @@ ODOM_Data_t ODOM_data;
 void BodyVelocityControl(void);
 void BodyVelocityControl_2(void);
 void BodyVelocityControl_3(void);
+void MotionControl_IrqHandler();
+
+void MotionControl_Init() {
+
+  icm42688_RegisterReceiveDataCallback(&MotionControl_IrqHandler);
+}
 
 void MotionControl_IrqHandler(){
 
-    TEST_PIN(1);
-    //速度指令値代入
-    BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)(apmp_data.vx_cmd_l + (uint16_t)(apmp_data.vx_cmd_h << 8)) - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
-    BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)(apmp_data.wz_cmd_l + (uint16_t)(apmp_data.wz_cmd_h << 8)) - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
-
+    //TEST_PF9(1);
     //IMUから受信したデータの読み取り処理
     imu_float_data l_imu = {0};
-    l_imu = icm42688_GetDataFloat(0);
-    
+    l_imu = icm42688_GetDataFloat();
+
     imu_data.acc[X_AXIS] = ACC_X_DIRECTION * l_imu.acceleration_mg_x;
     imu_data.acc[Y_AXIS] = ACC_Y_DIRECTION * l_imu.acceleration_mg_y;
     imu_data.acc[Z_AXIS] = ACC_Z_DIRECTION * l_imu.acceleration_mg_z;
     imu_data.gyro[X_AXIS] = GYRO_X_DIRECTION * l_imu.angular_rate_mrads_x;
     imu_data.gyro[Y_AXIS] = GYRO_Y_DIRECTION * l_imu.angular_rate_mrads_y;
     imu_data.gyro[Z_AXIS] = GYRO_Z_DIRECTION * l_imu.angular_rate_mrads_z;
+
+    //速度指令値代入
+    BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)(apmp_data.vx_cmd_l + (uint16_t)(apmp_data.vx_cmd_h << 8)) - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
+    BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)(apmp_data.wz_cmd_l + (uint16_t)(apmp_data.wz_cmd_h << 8)) - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
 
     if (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f || fabsf(BVC.vel_cmd_raw[Z_AXIS]) > (0.0001f * SMC_PI_F / 180.0f)){
         vqf_SetRestBiasEstEnabled(false);
@@ -535,14 +541,11 @@ void MotionControl_IrqHandler(){
     
 
     MC_state.time_count++;
-    //IMU読み出し用
-    icm42688_Int(0);
-
     if(MC_state.time_count % 16 == 0){
         send_data_on_mp_to_ap();//send start
     }
 
-    TEST_PIN(0);
+ //   TEST_PF9(0);
 }
 
 

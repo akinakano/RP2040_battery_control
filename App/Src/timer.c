@@ -6,7 +6,8 @@
 #include "comm_apmp.h"
 #include "power_control.h"
 #include "comm_battery.h"
-#include "motion_controller.h"
+#include "imu_icm42688.h"
+#include "gpio.h"
 
 static void TIM3_Init(void);
 static void TIM4_Init(void);
@@ -59,5 +60,6 @@ static void TIM4_Init(void) { // motion control interval (high priorirty)
 void TIM4_IRQHandler(void) { // 1600Hz
 
   TIM4->SR &= ~TIM_SR_UIF;
-  MotionControl_IrqHandler();
+
+  icm42688_IrqIntervalHandler(); // IMU -> MotionController -> SV
 }

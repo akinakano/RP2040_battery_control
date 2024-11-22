@@ -38,8 +38,8 @@
 #define IMU_FROM_LSB_TO_degC(lsb)   (float)((lsb * 7.548309E-03f) + 25.0f)
 
 /* Public Function */
-void           icm42688_Int(uint16_t imu_idx);
 void           icm42688_Init();
+void           icm42688_IrqIntervalHandler();
 imu_float_data icm42688_GetDataFloat();
 void icm42688_RegisterReceiveDataCallback(void (*callback)());
 
