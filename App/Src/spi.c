@@ -124,7 +124,6 @@ int spi_TransferDMA(uint8_t *txBuf, uint8_t*rxBuf, int size) {
   IMU_SPI.hdmarx->XferErrorCallback = SPI_DMAError;
   IMU_SPI.hdmarx->XferAbortCallback = NULL;
   if (HAL_OK != HAL_DMA_Start_IT(IMU_SPI.hdmarx, (uint32_t)&SPI1->RXDR, (uint32_t)rxBuf, size)) {
-    SET_BIT(IMU_SPI.ErrorCode, HAL_SPI_ERROR_DMA);
     IMU_SPI.State = HAL_SPI_STATE_READY;
     return HAL_ERROR;
   }
@@ -136,14 +135,12 @@ int spi_TransferDMA(uint8_t *txBuf, uint8_t*rxBuf, int size) {
   IMU_SPI.hdmatx->XferErrorCallback    = SPI_DMAError;
   if (HAL_OK != HAL_DMA_Start_IT(IMU_SPI.hdmatx, (uint32_t)txBuf, (uint32_t)&SPI1->TXDR, size)) {
     HAL_DMA_Abort(IMU_SPI.hdmarx);
-    SET_BIT(IMU_SPI.ErrorCode, HAL_SPI_ERROR_DMA);
     IMU_SPI.State = HAL_SPI_STATE_READY;
     return HAL_ERROR;
   }
 
   SPI1->CR2 = (SPI1->CR2 & ~SPI_CR2_TSIZE) | (size << SPI_CR2_TSIZE_Pos);
   SPI1->CFG1 |= SPI_CFG1_TXDMAEN;
-  // SPI1->IER |= SPI_IT_OVR | SPI_IT_UDR | SPI_IT_FRE | SPI_IT_MODF;
   SPI1->CR1 |= SPI_CR1_SPE;
   SPI1->CR1 |= SPI_CR1_CSTART;
 
