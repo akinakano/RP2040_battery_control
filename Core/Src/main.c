@@ -51,7 +51,7 @@ int main(void) {
   comm_battery_init();
   Timer_Init();
   comm_mpsv_Init();
-  icm42688_Initialize();
+  icm42688_Init();
   NVIC_Init();
   __enable_irq();
 

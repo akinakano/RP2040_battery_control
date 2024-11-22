@@ -16,11 +16,6 @@
 #include "imu_common.h"
 #include "stm32h7xx_hal_spi.h"
 
-#define IMU_SPI      hspi1
-#define IMU_DMAC_TX  hdma_spi1_tx
-#define IMU_DMAC_RX  hdma_spi1_rx
-#define IMU_SPI_CS   SPI1_CS
-
 /* 換算用係数 */
 #define IMU_FS_16g_COEFF            (4.882813E-01f)
 #define IMU_FS_8g_COEFF             (2.441406E-01f)
@@ -43,11 +38,10 @@
 #define IMU_FROM_LSB_TO_degC(lsb)   (float)((lsb * 7.548309E-03f) + 25.0f)
 
 /* Public Function */
-void           icm42688_Initialize();
 void           icm42688_Int(uint16_t imu_idx);
-imu_float_data icm42688_GetDataFloat_blocking(SPI_HandleTypeDef *hspi);
-imu_float_data icm42688_GetDataFloat(uint16_t imu_idx);
-EN_IMU_ERR     icm42688_GetError(SPI_HandleTypeDef *hspi);
+void           icm42688_Init();
+imu_float_data icm42688_GetDataFloat();
+void icm42688_RegisterReceiveDataCallback(void (*callback)());
 
 #endif
 

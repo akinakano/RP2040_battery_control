@@ -12,8 +12,7 @@
 #include <stdbool.h>
 #include "imu_icm42688.h"
 #include "main.h"
-#include "HW_type.h"
-#include "gpio.h"
+#include "spi.h"
 
 #define ICM_ACC_FSR            (16)      /* +/-[g]   */
 #define ICM_GYR_FSR            (1000)    /* +/-[dps] */
@@ -174,15 +173,10 @@ static const uint8_t SCA_US_IMU_SPI4_SEND_UI[][2] = {
 
 #define IMU_ACC_ADDR                  (0x1d)
 
-SPI_HandleTypeDef IMU_SPI;
-DMA_HandleTypeDef IMU_DMAC_RX;
-DMA_HandleTypeDef IMU_DMAC_TX;
 
-/* Private variables ---------------------------------------------------------*/
+uint8_t dataBuffer[DMA_DATASIZE];
 
-static ST_DMA_INFO dma_info[IMU_NUM_OF_MAX];
-static EN_IMU_ERR s_en_imu_err[IMU_NUM_OF_MAX] = {EN_IMU_ERR_INI, EN_IMU_ERR_INI};     //IMUエラーステータス
-static const uint16_t IMU_DATA_LENGTH = 14;
+static EN_IMU_ERR s_en_imu_err = EN_IMU_ERR_INI;     //IMUエラーステータス
 static uint8_t s_imu_read_transmit_data[16];
 
 /*------------------------------------------------------------------------*/
@@ -208,13 +202,7 @@ static void Sv_TSPI_Write_Single(uint8_t Reg_Addr, uint8_t Reg_value)
 {
     uint8_t send_cmd[2] = {Reg_Addr, Reg_value};
 
-    // Chip Selector OFF 
-    IMU_SPI_CS(0);
-
-    HAL_SPI_Transmit(&IMU_SPI, send_cmd, 2, 10);
-
-    // Chip Selector ON
-    IMU_SPI_CS(1);
+    spi_Transfer(send_cmd, NULL, 2, 10);
 }
 
 /**********************************************************************//**
@@ -228,20 +216,14 @@ static void Sv_TSPI_Write_Single(uint8_t Reg_Addr, uint8_t Reg_value)
  *************************************************************************/
 static uint8_t Sv_TSPI_Read_Single(uint8_t Reg_Addr)
 {
-    uint8_t send_cmd;
+    uint8_t send_cmd[2];
     uint8_t recv_data[2];
 
-    send_cmd = C_US_IMU_READ | Reg_Addr;
+    send_cmd[0] = C_US_IMU_READ | Reg_Addr;
+    send_cmd[1] = 0;
+    spi_Transfer((uint8_t *)&send_cmd,(uint8_t *)&recv_data, 2, 10);
 
-    // Chip Selector OFF
-    IMU_SPI_CS(0);
-
-    HAL_SPI_TransmitReceive(&IMU_SPI, (uint8_t *)&send_cmd, (uint8_t *)&recv_data, 2, 10);
-
-    // Chip Selector ON 
-    IMU_SPI_CS(1);
-
-//  printf("  [Debug]  HAL_SPI_TransmitReceive Read Data : 0x%02x/0x%02x .\r\n",
+//  printf("  [Debug]  spi_TransmitAndReceive Read Data : 0x%02x/0x%02x .\r\n",
 //           recv_data[0], recv_data[1]);
     return recv_data[1];
 }
@@ -254,15 +236,10 @@ static uint8_t Sv_TSPI_Read_Single(uint8_t Reg_Addr)
  * @warning
  *************************************************************************/
 static void IMU_SPI_Send_Initial_Settings() {
-    // Chip Selector OFF
-    IMU_SPI_CS(0);
 
     /* 初期化設定を送る*/
-    HAL_SPI_Transmit(&IMU_SPI, (uint8_t *)SCA_US_IMU_INIT_SEND_UI,
+    spi_Transfer((uint8_t *)SCA_US_IMU_INIT_SEND_UI, NULL,
             sizeof(SCA_US_IMU_INIT_SEND_UI) / sizeof(SCA_US_IMU_INIT_SEND_UI[0][0]), 10);
-
-    // Chip Selector ON 
-    IMU_SPI_CS(1);
 }
 
 
@@ -275,96 +252,10 @@ static void IMU_SPI_Send_Initial_Settings() {
  *************************************************************************/
 static void IMU_SPI_Chip_Set_SPI4() {
 
-    IMU_SPI_CS(0);
-    HAL_SPI_Transmit(&IMU_SPI, (uint8_t *)SCA_US_IMU_SPI4_SEND_UI,
+    spi_Transfer((uint8_t *)SCA_US_IMU_SPI4_SEND_UI, NULL,
             sizeof(SCA_US_IMU_SPI4_SEND_UI), 10);
-    IMU_SPI_CS(1);
 
-//  printf("  [Debug]  HAL_SPI_Transmit ret : 0x%02x .\r\n", hal_ret);
-}
-
-/**********************************************************************//**
- * @author  Kazutaka.Takaki/Shingo.Nishikata
- * @date    %%180717
- * @param   UN_IMU_DATA const * un_imudata  :lsm6dslのint型TEMP、GY、XL
- * @param   imu_float_data * imu_float　　  :float型のTEMP、GY、XL
- * @return  None
- * @brief   int型TEMP、GY、XLをfloat型に変換し、人が読みやすくする。
- * @warning
- *************************************************************************/
-static void imu_int2float(UN_IMU_DATA const * un_imudata, imu_float_data * imu_float)
-{
-    imu_float->temp_data            = IMU_FROM_LSB_TO_degC(un_imudata->st_data.ss_temp_data );
-    imu_float->acceleration_mg_x    = IMU_FROM_FS_TO_mG(un_imudata->st_data.ss_accel_data_x);
-    imu_float->acceleration_mg_y    = IMU_FROM_FS_TO_mG(un_imudata->st_data.ss_accel_data_y);
-    imu_float->acceleration_mg_z    = IMU_FROM_FS_TO_mG(un_imudata->st_data.ss_accel_data_z);
-    imu_float->angular_rate_mrads_x = IMU_FROM_FS_TO_mRADS(un_imudata->st_data.ss_gyro_data_x);
-    imu_float->angular_rate_mrads_y = IMU_FROM_FS_TO_mRADS(un_imudata->st_data.ss_gyro_data_y);
-    imu_float->angular_rate_mrads_z = IMU_FROM_FS_TO_mRADS(un_imudata->st_data.ss_gyro_data_z);
-}
-
-/**************************************************************************
- * @author  Masayuki.Fukuyama
- * @date    20220315
- * @param   hspi : SPI handler  for Imu
- * @return  None
- * @brief   Turn On chip selector for SPI communication for imu
- * @warning
- * @detail
- *************************************************************************/
-static void imu_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-    uint8_t idx_i;
-
-    // Find SPI ch
-    for (idx_i=0; idx_i<IMU_NUM_OF_MAX; idx_i++) {
-        if (hspi == &IMU_SPI) {
-            IMU_SPI_CS(1);
-
-            break;
-        }
-    }
-}
-
-/**************************************************************************
- * @author  Masayuki.Fukuyama/Shingo.Nishikata
- * @date    20220714
- * @param   imu_idx : Index of imu to send and receive
- * @return  Pointer to Imu's raw data storage buffer
- * @brief   receives a large amount of imu data in non-blocking mode using DMA.
- *          References are IMC-42605 Datasheet's 16 page
- *          [SPI TIMING CHARACTERIZATION 4-WIRE SPI MODE]
- * @warning
- * @detail
- *************************************************************************/
-uint8_t imu_debug_flag;
-static uint8_t *icm42688_GetDataInt(uint16_t imu_idx) 
-{
-    uint8_t *pret = NULL;
-
-    // 転送後初回の読み出し
-    if(true == dma_info[imu_idx].transmit_flag) {
-        imu_debug_flag |= 0x01;
-        // 受信処理待ち
-        while(HAL_SPI_GetState(&IMU_SPI) != HAL_SPI_STATE_READY){
-            imu_debug_flag |= 0x02;
-        };
-
-        dma_info[imu_idx].transmit_flag = false;
-        dma_info[imu_idx].data_buff_no ^= 0x01; //バッファを転送後のものに変更
-    }else{
-        imu_debug_flag |= 0x04;
-    }
-
-    pret = dma_info[imu_idx].data_Buff[dma_info[imu_idx].data_buff_no];
-
-    if( (pret[9]==0) && (pret[10]==0)){
-        imu_debug_flag |= 0x08;
-    }else{
-        imu_debug_flag |= 0x10;
-    }
-
-    return pret;
+//  printf("  [Debug]  spi_Transmit ret : 0x%02x .\r\n", hal_ret);
 }
 
 /*------------------------------------------------------------------------*/
@@ -380,53 +271,19 @@ static uint8_t *icm42688_GetDataInt(uint16_t imu_idx)
  * @detail  IMUの初期設定をする
  * @detail  上林さんのコードを改造して作成した
  *************************************************************************/
-void icm42688_Initialize() {
-  int i, j;
+void icm42688_Init() {
+  int i;
   char whoamI, rst;
   EN_IMU_ERR en_imu_err = EN_IMU_ERR_NON;
 
-  uint16_t idx_j, idx_k;
-  uint16_t setidx = 0;
+  uint16_t idx_k;
 
-  __HAL_RCC_DMA1_CLK_ENABLE();
-  IMU_SPI.Instance = SPI1;
-  IMU_SPI.Init.Mode = SPI_MODE_MASTER;
-  IMU_SPI.Init.Direction = SPI_DIRECTION_2LINES;
-  IMU_SPI.Init.DataSize = SPI_DATASIZE_8BIT;
-  IMU_SPI.Init.CLKPolarity = SPI_POLARITY_LOW;
-  IMU_SPI.Init.CLKPhase = SPI_PHASE_1EDGE;
-  IMU_SPI.Init.NSS = SPI_NSS_SOFT;
-  IMU_SPI.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
-  IMU_SPI.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  IMU_SPI.Init.TIMode = SPI_TIMODE_DISABLE;
-  IMU_SPI.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  IMU_SPI.Init.CRCPolynomial = 0x0;
-  IMU_SPI.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  IMU_SPI.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
-  IMU_SPI.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
-  IMU_SPI.Init.TxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
-  IMU_SPI.Init.RxCRCInitializationPattern = SPI_CRC_INITIALIZATION_ALL_ZERO_PATTERN;
-  IMU_SPI.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
-  IMU_SPI.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
-  IMU_SPI.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
-  IMU_SPI.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
-  IMU_SPI.Init.IOSwap = SPI_IO_SWAP_DISABLE;
-  if (HAL_SPI_Init(&IMU_SPI) != HAL_OK) Error_Handler();
+  spi_Init();
 
-  // Dma Info.
-  dma_info[setidx].hspi = &IMU_SPI;
-  dma_info[setidx].transmit_flag = false;
-  dma_info[setidx].data_buff_no = 0;
 
-  for (idx_j=0; idx_j<DATA_BUFF_N; idx_j++) {
-      for (idx_k=0; idx_k<DMA_DATASIZE; idx_k++) {
-          dma_info[setidx].data_Buff[idx_j][idx_k] = 0x00;
-      }
+  for (idx_k=0; idx_k<DMA_DATASIZE; idx_k++) {
+    dataBuffer[idx_k] = 0x00;
   }
-
-  // Set Callback
-  HAL_SPI_RegisterCallback(&IMU_SPI, HAL_SPI_TX_RX_COMPLETE_CB_ID, imu_TxRxCpltCallback);
-
   // IMUを4線式SPIに設定
   IMU_SPI_Chip_Set_SPI4();
 
@@ -439,16 +296,12 @@ void icm42688_Initialize() {
 
   if ( whoamI != IMU_WHOAMI_RESPONSE ){
       en_imu_err = EN_IMU_ERR_WHOAMI;       /* チップIDが間違っていた場合、エラーフラグを立てる */
-      s_en_imu_err[setidx] = en_imu_err;
+      s_en_imu_err = en_imu_err;
   }
 
   // レジスタ値リセット
   Sv_TSPI_Write_Single(IMU_RESET_ADDRESS, IMU_RESET_COMMAND);
-
-  for(j=0;j<10000;j++){
-      asm("nop");
-      //300usほどsoftware reset. 1ms以上待つ
-  }
+  HAL_Delay(1);
 
   // レジスタ値リセット待ち
   i=0;
@@ -469,10 +322,7 @@ void icm42688_Initialize() {
       }
       i+=1;
 
-      for(j=0;j<10000;j++){
-          asm("nop");
-          //300usほどsoftware reset. 1ms以上待つ
-      }
+     HAL_Delay(1);
   }
 
   /* UI(Main)側の初期設定値を送信*/
@@ -486,8 +336,13 @@ void icm42688_Initialize() {
   s_imu_read_transmit_data[0] = C_US_IMU_READ | IMU_ACC_ADDR;
 
   /* エラー情報を代入 */
-  s_en_imu_err[setidx] = en_imu_err;
+  s_en_imu_err = en_imu_err;
 //  printf("\r\n");
+}
+
+void icm42688_RegisterReceiveDataCallback(void (*callback)()) {
+
+  spi_RegisterTransferCompleteCallback(callback);
 }
 
 /**********************************************************************//**
@@ -497,55 +352,11 @@ void icm42688_Initialize() {
  * @return  None
  * @brief   SPI IMUリードアドレスセット関数
  *************************************************************************/
-void icm42688_Int(uint16_t imu_idx) {
+void icm42688_IrqIntervalHandler() {
 
-    // Chip Selector OFF 
-    IMU_SPI_CS(0);
-
-    unsigned char l_buff_no = dma_info[imu_idx].data_buff_no ^ 0x01;
-
-    HAL_SPI_TransmitReceive_DMA(&IMU_SPI,
-                                (uint8_t *)s_imu_read_transmit_data,
-                                (uint8_t *)dma_info[imu_idx].data_Buff[l_buff_no],
-                                DMA_DATASIZE);
-
-    dma_info[imu_idx].transmit_flag = true; //転送開始フラグを立てる
-}
-
-/**********************************************************************//**
- * @author  Kazutaka.Takaki/Shingo.Nishikata
- * @date    %%220714
- * @param   None
- * @return  None
- * @brief   SPI IMUブロッキング受信処理
- *************************************************************************/
-imu_float_data icm42688_GetDataFloat_blocking(SPI_HandleTypeDef *hspi)
-{
-    int i;
-    uint16_t l_send_data[16];
-    uint16_t l_recv_data[16];
-
-    uint16_t l_temp;
-
-    for(i=0; i<IMU_DATA_LENGTH;i++){
-        l_temp = (uint16_t)((C_US_IMU_READ | (IMU_ACC_ADDR + i)) << 8);
-        l_send_data[i] = l_temp;
-    }
-    HAL_SPI_TransmitReceive(hspi, (uint8_t *)l_send_data, (uint8_t *)l_recv_data, IMU_DATA_LENGTH, 10);
-
-    UN_IMU_DATA l_imudata;
-    l_imudata.st_data.ss_temp_data    = (int16_t)(((l_recv_data[0]  & 0x00ff) << 8) | (l_recv_data[1]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_x = (int16_t)(((l_recv_data[2]  & 0x00ff) << 8) | (l_recv_data[3]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_y = (int16_t)(((l_recv_data[4]  & 0x00ff) << 8) | (l_recv_data[5]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_z = (int16_t)(((l_recv_data[6]  & 0x00ff) << 8) | (l_recv_data[7]  & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_x  = (int16_t)(((l_recv_data[8]  & 0x00ff) << 8) | (l_recv_data[9]  & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_y  = (int16_t)(((l_recv_data[10] & 0x00ff) << 8) | (l_recv_data[11] & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_z  = (int16_t)(((l_recv_data[12] & 0x00ff) << 8) | (l_recv_data[13] & 0x00ff));
-
-    imu_float_data l_imu;
-    imu_int2float(&l_imudata, &l_imu);
-
-    return l_imu;
+  spi_TransferDMA((uint8_t *)s_imu_read_transmit_data,
+                              (uint8_t *)dataBuffer,
+                              DMA_DATASIZE);
 }
 
 /**********************************************************************//**
@@ -555,22 +366,19 @@ imu_float_data icm42688_GetDataFloat_blocking(SPI_HandleTypeDef *hspi)
  * @return  None
  * @brief   SPI 受信処理
  *************************************************************************/
-imu_float_data icm42688_GetDataFloat(uint16_t imu_idx)
-{
-    uint8_t *l_recv_data = NULL;
-    l_recv_data = icm42688_GetDataInt(imu_idx);
+imu_float_data icm42688_GetDataFloat() {
 
     UN_IMU_DATA l_imudata;
-    l_imudata.st_data.ss_temp_data    = (int16_t)(((l_recv_data[1]  & 0x00ff) << 8) | (l_recv_data[2]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_x = (int16_t)(((l_recv_data[3]  & 0x00ff) << 8) | (l_recv_data[4]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_y = (int16_t)(((l_recv_data[5]  & 0x00ff) << 8) | (l_recv_data[6]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_z = (int16_t)(((l_recv_data[7]  & 0x00ff) << 8) | (l_recv_data[8]  & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_x  = (int16_t)(((l_recv_data[9]  & 0x00ff) << 8) | (l_recv_data[10] & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_y  = (int16_t)(((l_recv_data[11] & 0x00ff) << 8) | (l_recv_data[12] & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_z  = (int16_t)(((l_recv_data[13] & 0x00ff) << 8) | (l_recv_data[14] & 0x00ff));
+    l_imudata.st_data.ss_temp_data    = (int16_t)(((dataBuffer[1]  & 0x00ff) << 8) | (dataBuffer[2]  & 0x00ff));
+    l_imudata.st_data.ss_accel_data_x = (int16_t)(((dataBuffer[3]  & 0x00ff) << 8) | (dataBuffer[4]  & 0x00ff));
+    l_imudata.st_data.ss_accel_data_y = (int16_t)(((dataBuffer[5]  & 0x00ff) << 8) | (dataBuffer[6]  & 0x00ff));
+    l_imudata.st_data.ss_accel_data_z = (int16_t)(((dataBuffer[7]  & 0x00ff) << 8) | (dataBuffer[8]  & 0x00ff));
+    l_imudata.st_data.ss_gyro_data_x  = (int16_t)(((dataBuffer[9]  & 0x00ff) << 8) | (dataBuffer[10] & 0x00ff));
+    l_imudata.st_data.ss_gyro_data_y  = (int16_t)(((dataBuffer[11] & 0x00ff) << 8) | (dataBuffer[12] & 0x00ff));
+    l_imudata.st_data.ss_gyro_data_z  = (int16_t)(((dataBuffer[13] & 0x00ff) << 8) | (dataBuffer[14] & 0x00ff));
 
     imu_float_data l_imu;
-    if (EN_IMU_ERR_NON != s_en_imu_err[imu_idx]) {
+    if (EN_IMU_ERR_NON != s_en_imu_err) {
         l_imu.temp_data = 0.0f;
         l_imu.angular_rate_mrads_x = 0.0f;
         l_imu.angular_rate_mrads_y = 0.0f;
@@ -580,81 +388,13 @@ imu_float_data icm42688_GetDataFloat(uint16_t imu_idx)
         l_imu.acceleration_mg_z    = 0.0f;
     }
     else {
-        imu_int2float(&l_imudata, &l_imu);
+      l_imu.temp_data            = IMU_FROM_LSB_TO_degC(l_imudata.st_data.ss_temp_data );
+      l_imu.acceleration_mg_x    = IMU_FROM_FS_TO_mG(l_imudata.st_data.ss_accel_data_x);
+      l_imu.acceleration_mg_y    = IMU_FROM_FS_TO_mG(l_imudata.st_data.ss_accel_data_y);
+      l_imu.acceleration_mg_z    = IMU_FROM_FS_TO_mG(l_imudata.st_data.ss_accel_data_z);
+      l_imu.angular_rate_mrads_x = IMU_FROM_FS_TO_mRADS(l_imudata.st_data.ss_gyro_data_x);
+      l_imu.angular_rate_mrads_y = IMU_FROM_FS_TO_mRADS(l_imudata.st_data.ss_gyro_data_y);
+      l_imu.angular_rate_mrads_z = IMU_FROM_FS_TO_mRADS(l_imudata.st_data.ss_gyro_data_z);
     }
-
     return l_imu;
-}
-
-/**********************************************************************//**
- * @author  Kazutaka.Takaki/Shingo.Nishikata
- * @date    %%220714
- * @param   None
- * @return  IMUのエラー状態
- * @brief   IMUのエラー状態を返すGet関数。0の時はエラーなし
- * @warning
- *************************************************************************/
-EN_IMU_ERR icm42688_GetError(SPI_HandleTypeDef * hspi)
-{
-    int idx_i;
-    EN_IMU_ERR ret = EN_IMU_ERR_INI;
-
-    for (idx_i=0; idx_i<IMU_NUM_OF_MAX; idx_i++) {
-        if (hspi == &IMU_SPI) {
-            ret = s_en_imu_err[idx_i];
-            break;
-        }
-    }
-
-    return ret;
-}
-
-void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
-{
-  if(hspi->Instance != SPI1) return;
-
-/** Initializes the peripherals clock
-*/
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI1;
-  PeriphClkInitStruct.PLL2.PLL2M = 25;
-  PeriphClkInitStruct.PLL2.PLL2N = 400;
-  PeriphClkInitStruct.PLL2.PLL2P = 2;
-  PeriphClkInitStruct.PLL2.PLL2Q = 2;
-  PeriphClkInitStruct.PLL2.PLL2R = 2;
-  PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
-  PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
-  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
-  PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) Error_Handler();
-  __HAL_RCC_SPI1_CLK_ENABLE();
-
-  /* SPI1 DMA Init */
-  /* SPI1_RX Init */
-  IMU_DMAC_RX.Instance = DMA1_Stream0;
-  IMU_DMAC_RX.Init.Request = DMA_REQUEST_SPI1_RX;
-  IMU_DMAC_RX.Init.Direction = DMA_PERIPH_TO_MEMORY;
-  IMU_DMAC_RX.Init.PeriphInc = DMA_PINC_DISABLE;
-  IMU_DMAC_RX.Init.MemInc = DMA_MINC_ENABLE;
-  IMU_DMAC_RX.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-  IMU_DMAC_RX.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-  IMU_DMAC_RX.Init.Mode = DMA_NORMAL;
-  IMU_DMAC_RX.Init.Priority = DMA_PRIORITY_LOW;
-  IMU_DMAC_RX.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-  if(HAL_DMA_Init(&IMU_DMAC_RX) != HAL_OK) Error_Handler();
-  __HAL_LINKDMA(hspi,hdmarx,IMU_DMAC_RX);
-
-  /* SPI1_TX Init */
-  IMU_DMAC_TX.Instance = DMA1_Stream1;
-  IMU_DMAC_TX.Init.Request = DMA_REQUEST_SPI1_TX;
-  IMU_DMAC_TX.Init.Direction = DMA_MEMORY_TO_PERIPH;
-  IMU_DMAC_TX.Init.PeriphInc = DMA_PINC_DISABLE;
-  IMU_DMAC_TX.Init.MemInc = DMA_MINC_ENABLE;
-  IMU_DMAC_TX.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-  IMU_DMAC_TX.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-  IMU_DMAC_TX.Init.Mode = DMA_NORMAL;
-  IMU_DMAC_TX.Init.Priority = DMA_PRIORITY_LOW;
-  IMU_DMAC_TX.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-  if(HAL_DMA_Init(&IMU_DMAC_TX) != HAL_OK) Error_Handler();
-  __HAL_LINKDMA(hspi,hdmatx,IMU_DMAC_TX);
 }

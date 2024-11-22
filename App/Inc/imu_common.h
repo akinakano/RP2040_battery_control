@@ -10,9 +10,6 @@
 #ifndef __IMU_COMMON_H
 #define __IMU_COMMON_H
 
-//#include "stm32g4xx_hal.h"
-//#include "Define/commonType.h"
-//#include "Define/apiDefine.h"
 #include "stdbool.h"
 #include "stm32h747xx.h"
 #include "stm32h7xx_hal.h"
@@ -30,12 +27,6 @@
 #define TO_RAD_COEFF       (3.14159265358979f / 180.0f)
 #define TO_G_COEFF         (9.80665f)
 
-/** IMU初期化シーケンスステータス */
-typedef enum {
-    EN_TSPI_STATUS_NON = 0,       /*!< 電源投入直後 */
-    EN_TSPI_STATUS_INIT,          /*!< 初期化状態 */
-    EN_TSPI_STATUS_DATA,           /*!< データ取得状態 */
-} EN_TSPI_STATUS;
 
 /* Private typedef -----------------------------------------------------------*/
 /** IMU SPI 受信データ構造体 */
@@ -61,43 +52,6 @@ typedef enum {
     EN_IMU_ERR_WHOAMI,     /* WhoAmIエラー */
     EN_IMU_ERR_RESET,      /* RESETエラー  */
 } EN_IMU_ERR;
-
-typedef struct {
-    SPI_HandleTypeDef *hspi;
-    GPIO_TypeDef      *hcs_port;
-    uint16_t          cs_pin;
-} ST_IMU_SPI;
-
-typedef struct {
-    SPI_HandleTypeDef *hspi;
-    bool transmit_flag;
-    uint8_t  data_buff_no;
-    uint8_t data_Buff[DATA_BUFF_N][DMA_DATASIZE];
-} ST_DMA_INFO;
-
-typedef struct {
-    uint32_t    timestamp;
-    float temperature;
-    float gyro_x;
-    float gyro_y;
-    float gyro_z;
-
-    float accel_x;
-    float accel_y;
-    float accel_z;
-} imu_float_t;
-
-typedef struct {
-    uint32_t timestamp;
-    int32_t temperature;
-    int32_t gyro_x;
-    int32_t gyro_y;
-    int32_t gyro_z;
-    int32_t accel_x;
-    int32_t accel_y;
-    int32_t accel_z;
-} imu_int_t;
-
 
 typedef struct {
     float temp_data;
