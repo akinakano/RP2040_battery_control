@@ -25,31 +25,26 @@ extern DMA_HandleTypeDef hdma_spi1_tx;
 
 void NMI_Handler(void) {
 
-  TEST_PF5(1);
   while(1);
 }
 
 void HardFault_Handler(void) {
 
-  TEST_PF5(1);
   while(1);
 }
 
 void MemManage_Handler(void) {
 
-  TEST_PF5(1);
   while(1);
 }
 
 void BusFault_Handler(void) {
 
-  TEST_PF5(1);
   while(1);
 }
 
 void UsageFault_Handler(void){
 
-  TEST_PF5(1);
   while(1);
 }
 
@@ -72,35 +67,25 @@ void SysTick_Handler(void) {
 
 void DMA1_Stream0_IRQHandler(void) {
 
-  TEST_PF6(1);
   HAL_DMA_IRQHandler(&hdma_spi1_rx);
-  TEST_PF6(0);
 }
 
 void DMA1_Stream1_IRQHandler(void) {
 
-  TEST_PF6(1);
   HAL_DMA_IRQHandler(&hdma_spi1_tx);
-  TEST_PF6(0);
 }
 
 void I2C1_EV_IRQHandler(void) {
 
-  TEST_PF6(1);
   HAL_SMBUS_EV_IRQHandler(&hsmbus1);
-  TEST_PF6(0);
 }
 
 void I2C1_ER_IRQHandler(void) {
 
-  TEST_PF6(1);
   HAL_SMBUS_ER_IRQHandler(&hsmbus1);
-  TEST_PF6(0);
 }
 
 void OTG_FS_IRQHandler(void) {
 
-  TEST_PF6(1);
   HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);
-  TEST_PF6(0);
 }

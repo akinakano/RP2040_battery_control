@@ -39,7 +39,6 @@ void Console_Init(void) { // DebugUART
 
 void Console_IRQHandler(void) {
 
-TEST_PF5(1);
   uint32_t isr = CONSOLE_UART->ISR;
   if(isr & USART_ISR_TXFE) {
     while(tx_tail != tx_head) {
@@ -60,7 +59,6 @@ TEST_PF5(1);
     }
     CONSOLE_UART->ICR = USART_ICR_RTOCF;
   }
-TEST_PF5(0);
 }
 
 int getcharNonblock(void) {
@@ -91,11 +89,8 @@ int putchar(int c) {
 
 int __io_putchar(int d) {
 
-TEST_PF9(1);
-
   if(d == 0x0a) while(putchar(0x0d) < 0);
   while(putchar(d) < 0);
-TEST_PF9(0);
   return d;
 }
 
