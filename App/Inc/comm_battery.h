@@ -1,12 +1,8 @@
 
-#ifndef COMM_BATTERY_H
-#define COMM_BATTERY_H
+#ifndef __COMM_BATTERY_H__
+#define __COMM_BATTERY_H__
 
 #include <stdint.h>
-#include "stm32h7xx_hal.h"
-
-#define COMM_BATTERY_I2C (I2C1)
-#define BATTERY_ADDR (0x16) // 0x36
 
 struct BatteryStatus_st {
   int32_t Current; // mA
@@ -22,4 +18,4 @@ struct BatteryStatus_st {
 void comm_battery_init(void);
 void Comm_Battery_Handler();
 
-#endif // COMM_BATTERY_H
+#endif // __COMM_BATTERY_H__
