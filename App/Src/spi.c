@@ -2,6 +2,7 @@
 #include "stm32h7xx_hal.h"
 #include "main.h"
 #include "spi.h"
+#include "gpio.h"
 
 SPI_HandleTypeDef IMU_SPI;
 DMA_HandleTypeDef IMU_DMAC_RX;
@@ -142,7 +143,7 @@ int spi_TransferDMA(uint8_t *txBuf, uint8_t*rxBuf, int size) {
 
   SPI1->CR2 = (SPI1->CR2 & ~SPI_CR2_TSIZE) | (size << SPI_CR2_TSIZE_Pos);
   SPI1->CFG1 |= SPI_CFG1_TXDMAEN;
-  SPI1->IER |= SPI_IT_OVR | SPI_IT_UDR | SPI_IT_FRE | SPI_IT_MODF;
+  // SPI1->IER |= SPI_IT_OVR | SPI_IT_UDR | SPI_IT_FRE | SPI_IT_MODF;
   SPI1->CR1 |= SPI_CR1_SPE;
   SPI1->CR1 |= SPI_CR1_CSTART;
 
@@ -175,7 +176,7 @@ static void SPI_DMAError(DMA_HandleTypeDef *hdma)
 
 void SPI1_IRQHandler(void) {
 
-
+  TEST_PF6(1);
   if(SPI1->SR & SPI_SR_EOT) {
     SPI1->IFCR &= ~(SPI_IFCR_EOTC | SPI_IFCR_TXTFC | SPI_IFCR_SUSPC);
     SPI1->IER &= ~SPI_IER_EOTIE;
@@ -183,4 +184,5 @@ void SPI1_IRQHandler(void) {
     IMU_SPI.State = HAL_SPI_STATE_READY;
     if(transferCompleteCallback) transferCompleteCallback();
   }
+  TEST_PF6(0);
 }

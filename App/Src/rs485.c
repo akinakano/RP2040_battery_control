@@ -2,7 +2,7 @@
 #include <stddef.h>
 
 #include "rs485.h"
-#include "HW_type.h"
+#include "gpio.h"
 
 static volatile uint8_t rx_buff[RS485_RX_BUFF_SIZE];
 static volatile int rx_tail = 0;
@@ -43,6 +43,8 @@ void rs485_send(uint8_t *buf, int len) {
 
 void RS485_IRQHandler() {
 
+  TEST_PF6(1);
+
   uint32_t isr = RS485_UART->ISR;
   if(isr & (USART_ISR_RXFT | USART_ISR_RTOF)) {
     while(RS485_UART->ISR & USART_ISR_RXNE_RXFNE) {
@@ -56,6 +58,7 @@ void RS485_IRQHandler() {
     RS485_UART->ICR = USART_ICR_RTOCF;
     if(receiveTimeoutCallback && (isr & USART_ISR_RTOF)) receiveTimeoutCallback();
   }
+  TEST_PF6(0);
 }
 
 void rs485_register_receive_timeout_callback(void (*func)(void)) {

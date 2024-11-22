@@ -98,7 +98,7 @@ ${TARGET}: ${OBJS}
 ${TARGET_BIN}: ${TARGET}
 	${OBJCOPY} -O binary ${TARGET} ${TARGET_BIN}
 
-install: all
+install: build
 	st-flash --reset write ${TARGET_BIN} 0x8000000
 
 clean:

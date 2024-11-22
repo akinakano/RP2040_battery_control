@@ -19,7 +19,7 @@ void debug_command(int c);
 void debug_print(void);
 
 void debug_menu(void){
-    printf("\n");
+    printf(" \n");
     printf("***** PURIMOKUN MOTION CONTROL ver.20%02d%02d%02d.%02d *****\n"
         ,MP_VERSION_YY, MP_VERSION_MM, MP_VERSION_DD, MP_VERSION_NN);
     printf("Debug Command \n");

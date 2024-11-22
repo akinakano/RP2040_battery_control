@@ -1,9 +1,9 @@
-#include    <stdio.h>
-#include    <ctype.h>
-#include    <stdarg.h>
-#include    <stm32h747xx.h>
-#include    "console.h"
-#include    "util.h"
+#include <stdio.h>
+#include <ctype.h>
+#include <stdarg.h>
+#include <stm32h747xx.h>
+#include "console.h"
+#include "gpio.h"
 
 static volatile uint8_t rx_buff[RX_BUFF_SIZE];
 static volatile int rx_tail = 0;
@@ -39,6 +39,7 @@ void Console_Init(void) { // DebugUART
 
 void Console_IRQHandler(void) {
 
+TEST_PF5(1);
   uint32_t isr = CONSOLE_UART->ISR;
   if(isr & USART_ISR_TXFE) {
     while(tx_tail != tx_head) {
@@ -59,6 +60,7 @@ void Console_IRQHandler(void) {
     }
     CONSOLE_UART->ICR = USART_ICR_RTOCF;
   }
+TEST_PF5(0);
 }
 
 int getcharNonblock(void) {
@@ -89,8 +91,11 @@ int putchar(int c) {
 
 int __io_putchar(int d) {
 
+TEST_PF9(1);
+
   if(d == 0x0a) while(putchar(0x0d) < 0);
   while(putchar(d) < 0);
+TEST_PF9(0);
   return d;
 }
 
