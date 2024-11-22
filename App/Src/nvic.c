@@ -9,32 +9,32 @@ void NVIC_Init(void) {
   uint32_t NVIC_PriorityGroup4 = 0x03;
   NVIC_SetPriorityGrouping(NVIC_PriorityGroup4);
 
-  // IMU kick motion_controll interval priority  2
-  NVIC_SetPriority(TIM4_IRQn, 2);
+  // debug_console priority 0
+  NVIC_SetPriority(USART2_IRQn, 0);
+  NVIC_EnableIRQ(USART2_IRQn);
+
+  // IMU kick motion_controll interval priority 1
+  NVIC_SetPriority(TIM4_IRQn, 1);
   NVIC_EnableIRQ(TIM4_IRQn);
 
   // comm_MPSV priority 2
-  NVIC_SetPriority(UART4_IRQn, 2);
+  NVIC_SetPriority(UART4_IRQn, 4);
   NVIC_EnableIRQ(UART4_IRQn);
 
   // USB-FS priority 2
-  NVIC_SetPriority(OTG_FS_IRQn, 2);
+  NVIC_SetPriority(OTG_FS_IRQn, 4);
   NVIC_EnableIRQ(OTG_FS_IRQn);
 
   // SMBUS priority 2
-  NVIC_SetPriority(I2C1_EV_IRQn, 2);
+  NVIC_SetPriority(I2C1_EV_IRQn, 4);
   NVIC_EnableIRQ(I2C1_EV_IRQn);
-  NVIC_SetPriority(I2C1_ER_IRQn, 2);
+  NVIC_SetPriority(I2C1_ER_IRQn, 4);
   NVIC_EnableIRQ(I2C1_ER_IRQn);
 
-  // debug_console priority 3
-  NVIC_SetPriority(USART2_IRQn, 3);
-  NVIC_EnableIRQ(USART2_IRQn);
-
   // SPI1 DMA Stream priority 2
-  NVIC_SetPriority(DMA1_Stream0_IRQn, 2);
+  NVIC_SetPriority(DMA1_Stream0_IRQn, 4);
   NVIC_EnableIRQ(DMA1_Stream0_IRQn);
-  NVIC_SetPriority(DMA1_Stream1_IRQn, 2);
+  NVIC_SetPriority(DMA1_Stream1_IRQn, 4);
   NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 
   // SPI1 EOT -> motion controller
