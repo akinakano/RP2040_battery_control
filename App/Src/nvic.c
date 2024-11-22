@@ -1,45 +1,47 @@
-#include    <stm32h747xx.h>
-#include    <core_cm7.h>
+#include <stm32h747xx.h>
+#include <core_cm7.h>
 
 #include "nvic.h"
 
-// priority : 0(high)~255(low)
 void NVIC_Init(void) {
 
-    uint32_t NVIC_PriorityGroup4 = 0x03;
-    NVIC_SetPriorityGrouping(NVIC_PriorityGroup4);
+  // priority : 0(high)~15(low)
+  uint32_t NVIC_PriorityGroup4 = 0x03;
+  NVIC_SetPriorityGrouping(NVIC_PriorityGroup4);
 
-    // SPI1 priority 8
-    NVIC_SetPriority(DMA1_Stream0_IRQn, 8);
-    NVIC_EnableIRQ(DMA1_Stream0_IRQn);
-    NVIC_SetPriority(DMA1_Stream1_IRQn, 8);
-    NVIC_EnableIRQ(DMA1_Stream1_IRQn);
-    NVIC_SetPriority(SPI1_IRQn, 8);
-    NVIC_EnableIRQ(SPI1_IRQn);
+  // IMU kick motion_controll interval priority  2
+  NVIC_SetPriority(TIM4_IRQn, 2);
+  NVIC_EnableIRQ(TIM4_IRQn);
 
-    // comm_MPSV priority 16
-    NVIC_SetPriority(UART4_IRQn, 16);
-    NVIC_EnableIRQ(UART4_IRQn);
+  // comm_MPSV priority 2
+  NVIC_SetPriority(UART4_IRQn, 2);
+  NVIC_EnableIRQ(UART4_IRQn);
 
-    // motion_controller interval priority  20
-    NVIC_SetPriority(TIM4_IRQn, 20);
-    NVIC_EnableIRQ(TIM4_IRQn);
+  // USB-FS priority 2
+  NVIC_SetPriority(OTG_FS_IRQn, 2);
+  NVIC_EnableIRQ(OTG_FS_IRQn);
 
-    // USB-FS priority 32
-    NVIC_SetPriority(OTG_FS_IRQn, 32);
-    NVIC_EnableIRQ(OTG_FS_IRQn);
+  // SMBUS priority 2
+  NVIC_SetPriority(I2C1_EV_IRQn, 2);
+  NVIC_EnableIRQ(I2C1_EV_IRQn);
+  NVIC_SetPriority(I2C1_ER_IRQn, 2);
+  NVIC_EnableIRQ(I2C1_ER_IRQn);
 
-    // SMBUS priority 48
-    NVIC_SetPriority(I2C1_EV_IRQn, 48);
-    NVIC_EnableIRQ(I2C1_EV_IRQn);
-    NVIC_SetPriority(I2C1_ER_IRQn, 48);
-    NVIC_EnableIRQ(I2C1_ER_IRQn);
+  // debug_console priority 3
+  NVIC_SetPriority(USART2_IRQn, 3);
+  NVIC_EnableIRQ(USART2_IRQn);
 
-    // debug_console priority 64
-    NVIC_SetPriority(USART2_IRQn, 64);
-    NVIC_EnableIRQ(USART2_IRQn);
+  // SPI1 DMA Stream priority 2
+  NVIC_SetPriority(DMA1_Stream0_IRQn, 2);
+  NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  NVIC_SetPriority(DMA1_Stream1_IRQn, 2);
+  NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 
-    // generic timer 100Hz interval priority 72
-    NVIC_SetPriority(TIM3_IRQn, 72);
-    NVIC_EnableIRQ(TIM3_IRQn);
+  // SPI1 EOT -> motion controller
+  NVIC_SetPriority(SPI1_IRQn, 8);
+  NVIC_EnableIRQ(SPI1_IRQn);
+
+  // generic timer 100Hz interval priority 128
+  NVIC_SetPriority(TIM3_IRQn, 15);
+  NVIC_EnableIRQ(TIM3_IRQn);
 }
