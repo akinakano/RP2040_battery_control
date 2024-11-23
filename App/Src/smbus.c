@@ -15,8 +15,6 @@ static void SendCommand(SMBusCommandSt *command);
 void SMBUS_Init() {
 
   RCC->APB1LENR |= RCC_APB1LENR_I2C1EN;
-  uint32_t dummy = RCC->APB1LENR;
-  UNUSED(dummy);
 
   hsmbus1.Instance = I2C1;
   hsmbus1.Init.Timing = 0x307075B1;

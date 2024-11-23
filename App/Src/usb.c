@@ -101,6 +101,8 @@ __ALIGN_BEGIN uint8_t USBD_StringSerial[USB_SIZ_STRING_SERIAL] __ALIGN_END = {
 // USB device
 void USB_DEVICE_Init(void) {
 
+  RCC->AHB1ENR |= RCC_AHB1ENR_USB2OTGHSEN;
+
   HAL_PWREx_EnableUSBVoltageDetector();
   if(USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK) Error_Handler();
   if(USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK) Error_Handler();

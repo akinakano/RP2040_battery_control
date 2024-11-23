@@ -14,6 +14,9 @@ static void SPI_DMAError(DMA_HandleTypeDef *hdma);
 
 void spi_Init() {
 
+  RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+  RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
+
   /* SPI1_RX DMA Init */
   IMU_DMAC_RX.Instance = DMA1_Stream0;
   IMU_DMAC_RX.Init.Request = DMA_REQUEST_SPI1_RX;
