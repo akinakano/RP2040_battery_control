@@ -84,14 +84,148 @@ static void SystemConfig(void) {
   __DSB();
   __ISB();
 
+  // Power config
+  PWR->CR3 = ((uint32_t)PWR->CR3 & ~PWR_SUPPLY_CONFIG_MASK) | PWR_SMPS_1V8_SUPPLIES_LDO;
+
+  uint32_t tickstart = HAL_GetTick();
+  while((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) != PWR_CSR1_ACTVOSRDY) {
+    if(HAL_GetTick () - tickstart > 1000) Error_Handler();
+  }
+
+  PWR->D3CR = ((uint32_t)PWR->D3CR & PWR_D3CR_VOS) | PWR_REGULATOR_VOLTAGE_SCALE1;
+  uint32_t dummy = PWR->D3CR;
+  SYSCFG->PWRCR |= SYSCFG_PWRCR_ODEN;
+  dummy = SYSCFG->PWRCR;
+  while((PWR->D3CR & PWR_D3CR_VOSRDY) != PWR_D3CR_VOSRDY);
+
   // SystemClock Config
-  uint32_t common_system_clock = HAL_RCC_GetSysClockFreq() >> ((D1CorePrescTable[(RCC->D1CFGR & RCC_D1CFGR_D1CPRE)>> RCC_D1CFGR_D1CPRE_Pos]) & 0x1FU);
-  SystemD2Clock = (common_system_clock >> ((D1CorePrescTable[(RCC->D1CFGR & RCC_D1CFGR_HPRE)>> RCC_D1CFGR_HPRE_Pos]) & 0x1FU));
-  SystemCoreClock = common_system_clock;
+  SystemD2Clock = HSI_VALUE; // internal Ring Osc 64MHz
+  SystemCoreClock = HSI_VALUE;
   HAL_InitTick(TICK_INT_PRIORITY);
 
+  // External XTAL 25MHz
+  RCC->CR |= RCC_CR_HSEON;
+  tickstart = HAL_GetTick();
+  while(!(RCC->CR & RCC_CR_HSERDY)) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+
+  // PLL1
+  // HSE: 25MHz / 5 x 192 = 960MHz
+  //     960MHz / 2  -> P1 -> 480MHz -> SYSCLK -> 1/2 -> 1/2 -> APB/AHB PeriCLK
+  //     960MHz / 5  -> Q1 -> 192MHz -> SPI1,2,3
+  //     960MHz / 2  -> R1 -> 480MHz
+  RCC->CR &= ~RCC_CR_PLL1ON;
+  tickstart = HAL_GetTick();
+  while(RCC->CR & RCC_CR_PLL1RDY) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+  RCC->PLLCKSELR = (RCC->PLLCKSELR & ~(RCC_PLLCKSELR_PLLSRC_Msk | RCC_PLLCKSELR_DIVM1)) |
+                   RCC_PLLSOURCE_HSE | (5 << RCC_PLLCKSELR_DIVM1_Pos);
+  RCC->PLL1DIVR = ((192 - 1) << RCC_PLL1DIVR_N1_Pos) |
+                  ((  2 - 1) << RCC_PLL1DIVR_P1_Pos) |
+                  ((  5 - 1) << RCC_PLL1DIVR_Q1_Pos) |
+                  ((  2 - 1) << RCC_PLL1DIVR_R1_Pos);
+  RCC->PLLCFGR &= ~RCC_PLLCFGR_PLL1FRACEN;
+  RCC->PLL1FRACR &= ~RCC_PLL1FRACR_FRACN1;
+  RCC->PLLCFGR = (RCC->PLLCFGR & ~RCC_PLLCFGR_PLL1RGE) | RCC_PLLCFGR_PLL1RGE_2;
+  RCC->PLLCFGR &= ~RCC_PLLCFGR_PLL1VCOSEL;
+  RCC->PLLCFGR |= RCC_PLLCFGR_DIVP1EN | RCC_PLLCFGR_DIVQ1EN | RCC_PLLCFGR_DIVR1EN | RCC_PLLCFGR_PLL1FRACEN;
+  RCC->CR |= RCC_CR_PLL1ON;
+  tickstart = HAL_GetTick();
+  while(!(RCC->CR & RCC_CR_PLL1RDY)) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+
+  // PLL2
+  // HSE: 25MHz / 2  x  40 = 500MHz
+  //     500MHz / 5  -> P2 -> 100MHz
+  //     500MHz / 5  -> Q2 -> 100MHz
+  //     500MHz / 5  -> R2 -> 100MHz -> SDMMC1,2
+  RCC->CR &= ~RCC_CR_PLL2ON;
+  tickstart = HAL_GetTick();
+  while(RCC->CR & RCC_CR_PLL2RDY) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+  RCC->PLLCKSELR = (RCC->PLLCKSELR & ~RCC_PLLCKSELR_DIVM2) | (2 << RCC_PLLCKSELR_DIVM2_Pos);
+  RCC->PLL2DIVR = (( 40 - 1) << RCC_PLL2DIVR_N2_Pos) |
+                  ((  5 - 1) << RCC_PLL2DIVR_P2_Pos) |
+                  ((  5 - 1) << RCC_PLL2DIVR_Q2_Pos) |
+                  ((  5 - 1) << RCC_PLL2DIVR_R2_Pos);
+  RCC->PLLCFGR = (RCC->PLLCFGR & ~RCC_PLLCFGR_PLL2RGE) | RCC_PLLCFGR_PLL2RGE_0;
+  RCC->PLLCFGR &= ~RCC_PLLCFGR_PLL2VCOSEL;
+  RCC->PLLCFGR &= ~RCC_PLLCFGR_PLL2FRACEN;
+  RCC->PLL2FRACR &= ~RCC_PLL2FRACR_FRACN2;
+  RCC->PLLCFGR |= RCC_PLLCFGR_PLL2FRACEN;
+  RCC->PLLCFGR |= RCC_PLLCFGR_DIVP2EN |RCC_PLLCFGR_DIVR2EN ;
+  RCC->CR |= RCC_CR_PLL2ON;
+  tickstart = HAL_GetTick();
+  while(!(RCC->CR & RCC_CR_PLL2RDY)) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+
+  // PLL3
+  // HSE: 25MHz /  5 x 96  = 480MHz
+  //     480MHz /  2 -> P3 -> 240MHz
+  //     480MHz / 10 -> Q3 ->  48MHz -> USB-FS
+  //     480MHz /  2 -> R3 -> 240MHz
+  RCC->CR &= ~RCC_CR_PLL3ON;
+  tickstart = HAL_GetTick();
+  while(RCC->CR & RCC_CR_PLL3RDY) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+  RCC->PLLCKSELR = (RCC->PLLCKSELR & ~RCC_PLLCKSELR_DIVM3) | (5 << RCC_PLLCKSELR_DIVM3_Pos);
+  RCC->PLL3DIVR = (( 96 - 1) << RCC_PLL3DIVR_N3_Pos) |
+                  ((  2 - 1) << RCC_PLL3DIVR_P3_Pos) |
+                  (( 10 - 1) << RCC_PLL3DIVR_Q3_Pos) |
+                  ((  2 - 1) << RCC_PLL3DIVR_R3_Pos);
+  RCC->PLLCFGR = (RCC->PLLCFGR & ~RCC_PLLCFGR_PLL3RGE) | RCC_PLLCFGR_PLL3RGE_0;
+  RCC->PLLCFGR &= ~RCC_PLLCFGR_PLL3VCOSEL;
+  RCC->PLLCFGR &= ~RCC_PLLCFGR_PLL3FRACEN;
+  RCC->PLL3FRACR &= ~RCC_PLL3FRACR_FRACN3;
+  RCC->PLLCFGR |= RCC_PLLCFGR_PLL3FRACEN;
+  RCC->PLLCFGR |= RCC_PLLCFGR_DIVQ3EN;
+  RCC->CR |= RCC_CR_PLL3ON;
+  tickstart = HAL_GetTick();
+  while(!(RCC->CR & RCC_CR_PLL3RDY)) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+
+  // Initializes the CPU, AHB and APB buses clocks
+  RCC->D1CFGR = (RCC->D1CFGR & ~RCC_D1CFGR_D1PPRE) | RCC_APB3_DIV2;
+  RCC->D2CFGR = (RCC->D2CFGR & ~RCC_D2CFGR_D2PPRE1) | RCC_APB1_DIV2;
+  RCC->D2CFGR = (RCC->D2CFGR & ~RCC_D2CFGR_D2PPRE2) | RCC_APB2_DIV2;
+  RCC->D3CFGR = (RCC->D3CFGR & ~RCC_D3CFGR_D3PPRE) | RCC_APB4_DIV2;
+  RCC->D1CFGR = (RCC->D1CFGR & ~RCC_D1CFGR_HPRE) | RCC_HCLK_DIV2;
+  RCC->D1CFGR = (RCC->D1CFGR & ~RCC_D1CFGR_D1CPRE) | RCC_SYSCLK_DIV1;
+
+  RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL1;
+  tickstart = HAL_GetTick();
+  while((RCC->CFGR & RCC_CFGR_SWS) != (RCC_CFGR_SW_PLL1 << RCC_CFGR_SWS_Pos)) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+
+  uint32_t common_system_clock = HAL_RCC_GetSysClockFreq() >> ((D1CorePrescTable[(RCC->D1CFGR & RCC_D1CFGR_D1CPRE) >> RCC_D1CFGR_D1CPRE_Pos]) & 0x1FU);
+
+  SystemD2Clock = (common_system_clock >> ((D1CorePrescTable[(RCC->D1CFGR & RCC_D1CFGR_HPRE) >> RCC_D1CFGR_HPRE_Pos]) & 0x1FU));
+  SystemCoreClock = common_system_clock;
+  HAL_InitTick(uwTickPrio);
+
+  tickstart = HAL_GetTick();
+  while(!(RCC->CR & RCC_CR_D2CKRDY)) {
+    if(HAL_GetTick() - tickstart > 100) Error_Handler();
+  }
+
+  // SystemController Enable
   RCC->APB4ENR |= RCC_APB4ENR_SYSCFGEN;
-  uint32_t dummy = RCC->APB4ENR;
+  dummy = RCC->APB4ENR;
+
+  // clock source selector
+  RCC->D1CCIPR = RCC_D1CCIPR_SDMMCSEL; // PLL2R(100MHz)->SDMMC
+  RCC->D2CCIP2R = 0;
+  RCC->D2CCIP2R = RCC_D2CCIP2R_USBSEL_1; // PLL3Q(48MHz)->USB-FS
+
+  // GPIO clk
   RCC->AHB4ENR |= RCC_AHB4ENR_GPIOGEN |
                   RCC_AHB4ENR_GPIOFEN |
                   RCC_AHB4ENR_GPIOEEN |
@@ -101,87 +235,21 @@ static void SystemConfig(void) {
                   RCC_AHB4ENR_GPIOAEN;
   dummy = RCC->AHB4ENR;
 
-  PWR->CR3 = ((uint32_t)PWR->CR3 & ~PWR_SUPPLY_CONFIG_MASK) | PWR_SMPS_1V8_SUPPLIES_LDO;
+  // SPI1 clk
+  RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+  dummy = RCC->APB2ENR;
+  RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
+  dummy = RCC->AHB1ENR;
 
-  uint32_t tickstart = HAL_GetTick ();
-  while((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) != PWR_CSR1_ACTVOSRDY) {
-    if((HAL_GetTick () - tickstart) > 1000U) Error_Handler();
-  }
+  // USB clk
+  RCC->AHB1ENR |= RCC_AHB1ENR_USB2OTGHSEN;
+  dummy = RCC->AHB1ENR;
 
-  PWR->D3CR = ((uint32_t)PWR->D3CR & PWR_D3CR_VOS) | PWR_REGULATOR_VOLTAGE_SCALE1;
-  dummy = PWR->D3CR;
-  SYSCFG->PWRCR |= SYSCFG_PWRCR_ODEN;
-  dummy = SYSCFG->PWRCR;
-  while((PWR->D3CR & PWR_D3CR_VOSRDY) != PWR_D3CR_VOSRDY);
-
-  // Initializes the RCC Oscillators according to the specified parameters
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 5;
-  RCC_OscInitStruct.PLL.PLLN = 192;
-  RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 2;
-  RCC_OscInitStruct.PLL.PLLR = 2;
-  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
-  RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-  RCC_OscInitStruct.PLL.PLLFRACN = 0;
-  if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) Error_Handler();
-
-  // Initializes the CPU, AHB and APB buses clocks
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2
-                              |RCC_CLOCKTYPE_D3PCLK1|RCC_CLOCKTYPE_D1PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
-  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
-
-  if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) Error_Handler();
-
+  // HSM clk
   RCC->AHB4ENR |= RCC_AHB4ENR_HSEMEN;
   dummy = RCC->AHB4ENR;
+
   UNUSED(dummy);
-
-  int32_t timeout = 0xFFFF;;
-  while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
-  if(timeout < 0) Error_Handler();
-
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI1;
-  PeriphClkInitStruct.PLL2.PLL2M = 25;
-  PeriphClkInitStruct.PLL2.PLL2N = 400;
-  PeriphClkInitStruct.PLL2.PLL2P = 2;
-  PeriphClkInitStruct.PLL2.PLL2Q = 2;
-  PeriphClkInitStruct.PLL2.PLL2R = 2;
-  PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
-  PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
-  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
-  PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) Error_Handler();
-  __HAL_RCC_SPI1_CLK_ENABLE();
-  __HAL_RCC_DMA1_CLK_ENABLE();
-
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInitStruct.PLL3.PLL3M = 25;
-  PeriphClkInitStruct.PLL3.PLL3N = 192;
-  PeriphClkInitStruct.PLL3.PLL3P = 4;
-  PeriphClkInitStruct.PLL3.PLL3Q = 4;
-  PeriphClkInitStruct.PLL3.PLL3R = 2;
-  PeriphClkInitStruct.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_0;
-  PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
-  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL3;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) Error_Handler();
-  __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
-
-  RCC->D2CCIP2R = ((uint32_t)(RCC->D2CCIP2R) & ~RCC_D2CCIP2R_I2C123SEL) | RCC_I2C123CLKSOURCE_D2PCLK1;
-
 }
 
 void Error_Handler(void) {
