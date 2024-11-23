@@ -174,7 +174,7 @@ static void SPI_DMAError(DMA_HandleTypeDef *hdma)
 void SPI1_IRQHandler(void) {
 
   if(SPI1->SR & SPI_SR_EOT) {
-    SPI1->IFCR &= ~(SPI_IFCR_EOTC | SPI_IFCR_TXTFC | SPI_IFCR_SUSPC);
+    SPI1->IFCR |= SPI_IFCR_EOTC | SPI_IFCR_TXTFC | SPI_IFCR_SUSPC;
     SPI1->IER &= ~SPI_IER_EOTIE;
     SPI_CloseTransfer();
     IMU_SPI.State = HAL_SPI_STATE_READY;

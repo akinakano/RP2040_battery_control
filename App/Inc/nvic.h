@@ -3,5 +3,4 @@
 
 void NVIC_Init();
 
-
 #endif // NVIC_H_
