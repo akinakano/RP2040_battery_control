@@ -5,6 +5,15 @@
 
 void GPIO_Init() {
 
+  // GPIO clk
+  RCC->AHB4ENR |= RCC_AHB4ENR_GPIOGEN |
+                  RCC_AHB4ENR_GPIOFEN |
+                  RCC_AHB4ENR_GPIOEEN |
+                  RCC_AHB4ENR_GPIODEN |
+                  RCC_AHB4ENR_GPIOCEN |
+                  RCC_AHB4ENR_GPIOBEN |
+                  RCC_AHB4ENR_GPIOAEN;
+
 // console
   // PD5      ------> AF7:UART2_TX
   // PD6      ------> AF7:UART2_RX

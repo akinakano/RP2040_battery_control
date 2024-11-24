@@ -101,12 +101,13 @@ __ALIGN_BEGIN uint8_t USBD_StringSerial[USB_SIZ_STRING_SERIAL] __ALIGN_END = {
 // USB device
 void USB_DEVICE_Init(void) {
 
-  HAL_PWREx_EnableUSBVoltageDetector();
+  // USB clk
+  RCC->AHB1ENR |= RCC_AHB1ENR_USB2OTGHSEN;
+
   if(USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK) Error_Handler();
   if(USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK) Error_Handler();
   if(USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS) != USBD_OK) Error_Handler();
   if(USBD_Start(&hUsbDeviceFS) != USBD_OK) Error_Handler();
-  HAL_PWREx_EnableUSBVoltageDetector();
 }
 
 void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd) {
@@ -471,4 +472,9 @@ static int8_t CDC_TransmitCplt_FS(uint8_t *Buf, uint32_t *Len, uint8_t epnum) {
 
   return (USBD_OK);
 
+}
+
+void OTG_FS_IRQHandler(void) {
+
+  HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);
 }
