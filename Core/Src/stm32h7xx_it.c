@@ -64,28 +64,3 @@ void SysTick_Handler(void) {
 
   HAL_IncTick();
 }
-
-void DMA1_Stream0_IRQHandler(void) {
-
-  HAL_DMA_IRQHandler(&hdma_spi1_rx);
-}
-
-void DMA1_Stream1_IRQHandler(void) {
-
-  HAL_DMA_IRQHandler(&hdma_spi1_tx);
-}
-
-void I2C1_EV_IRQHandler(void) {
-
-  HAL_SMBUS_EV_IRQHandler(&hsmbus1);
-}
-
-void I2C1_ER_IRQHandler(void) {
-
-  HAL_SMBUS_ER_IRQHandler(&hsmbus1);
-}
-
-void OTG_FS_IRQHandler(void) {
-
-  HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);
-}

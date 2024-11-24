@@ -15,23 +15,20 @@
   ******************************************************************************
   */
 
-#include "system.h"
 #include "main.h"
-#include "usbd_core.h"
+#include "system.h"
+#include "nvic.h"
+#include "gpio.h"
 #include "usb.h"
 #include "timer.h"
-#include "nvic.h"
-#include "power_control.h"
 #include "console.h"
-#include "debug.h"
-#include "gpio.h"
+#include "power_control.h"
+#include "imu_icm42688.h"
 #include "comm_mpsv.h"
 #include "comm_apmp.h"
 #include "comm_battery.h"
-#include "imu_icm42688.h"
 #include "motion_controller.h"
-#include "HW_type.h"
-#include "vqfInstance.h"
+#include "debug.h"
 
 #ifndef HSEM_ID_0
 #define HSEM_ID_0 (0U) /* HW semaphore 0*/
@@ -44,23 +41,26 @@ int main(void) {
   HAL_HSEM_FastTake(HSEM_ID_0);
   HAL_HSEM_Release(HSEM_ID_0, 0);
 
+  NVIC_Init();
   GPIO_Init();
   Console_Init();
-  PowerControl_Init();
-  USB_DEVICE_Init();
-  comm_battery_init();
   Timer_Init();
+  USB_DEVICE_Init();
   comm_mpsv_Init();
   icm42688_Init();
   MotionControl_Init();
-  NVIC_Init();
+  PowerControl_Init();
+  comm_battery_init();
   __enable_irq();
 
-  while (1) debug_menu();
+  while (1) {
+    debug_menu();
+    __WFI();
+  }
 }
 
 void Error_Handler(void) {
 
-  TEST_PF5(1);
+  printf("ErrorHandler\n");
   while(1);
 }

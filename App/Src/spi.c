@@ -14,6 +14,7 @@ static void SPI_DMAError(DMA_HandleTypeDef *hdma);
 
 void spi_Init() {
 
+  // SPI1 clk
   RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
   RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
 
@@ -183,4 +184,14 @@ void SPI1_IRQHandler(void) {
     IMU_SPI.State = HAL_SPI_STATE_READY;
     if(transferCompleteCallback) transferCompleteCallback();
   }
+}
+
+void DMA1_Stream0_IRQHandler(void) {
+
+  HAL_DMA_IRQHandler(&hdma_spi1_rx);
+}
+
+void DMA1_Stream1_IRQHandler(void) {
+
+  HAL_DMA_IRQHandler(&hdma_spi1_tx);
 }

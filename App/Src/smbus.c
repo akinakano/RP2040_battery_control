@@ -85,3 +85,12 @@ void HAL_SMBUS_MasterRxCpltCallback(SMBUS_HandleTypeDef *hsmbus) {
   if(transferCompleteCallback) transferCompleteCallback();
 }
 
+void I2C1_EV_IRQHandler(void) {
+
+  HAL_SMBUS_EV_IRQHandler(&hsmbus1);
+}
+
+void I2C1_ER_IRQHandler(void) {
+
+  HAL_SMBUS_ER_IRQHandler(&hsmbus1);
+}
