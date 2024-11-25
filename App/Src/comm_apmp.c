@@ -17,7 +17,7 @@ static int s_send_status = SEND_OFF_MP_TO_AP;
 static void Parse_APMPData(uint8_t *buf);
 static void mpap_status(uint8_t *buf);
 
-Comm_APMP_Receive apmp_data[2] = {
+Comm_APMP_Receive ApMpData[2] = {
   {
     .cmd = 0,
     .crc = 0,
@@ -35,7 +35,7 @@ Comm_APMP_Receive apmp_data[2] = {
     .wz_cmd = 0x8000,
   },
 };
-int apmp_data_bank = 0;
+int ApMpDataBank = 0;
 
 uint16_t state_mp_to_ap = STATE_MP_TO_AP_NORMAL;
 uint16_t dbg_flag_mpap;
@@ -64,7 +64,7 @@ void Comm_APMP_ErrorCheckInterval() { // 10Hz
     error_count = 0;
 
     #ifdef APMP_COMM_LOST_EMERGENCY
-        apmp_data[apmp_data_bank].cmd = AP_MP_CMD_IDLE;
+        ApMpData[ApMpDataBank].cmd = AP_MP_CMD_IDLE;
     #endif
     state_mp_to_ap |= STATE_MP_TO_AP_ERROR_APCOMM;
   }
@@ -75,18 +75,18 @@ static void Parse_APMPData(uint8_t *buf) {
 
   if(calc_crc(buf, COMM_APMP_SIZE - 1) != buf[COMM_APMP_SIZE - 1]) return;
 
-  int nextBank = apmp_data_bank ^ 1;
-  apmp_data[nextBank].head = (buf[0] << 8) | buf[1];
-  apmp_data[nextBank].cmd = buf[2];
-  apmp_data[nextBank].vx_cmd = (buf[3] << 8) | buf[4];
-  apmp_data[nextBank].vy_cmd = (buf[5] << 8) | buf[6];
-  apmp_data[nextBank].wz_cmd = (buf[7] << 8) | buf[8];
-  apmp_data[nextBank].wheel_radius_right = (buf[9]  << 8) | buf[10];
-  apmp_data[nextBank].wheel_radius_left  = (buf[11] << 8) | buf[12];
-  apmp_data[nextBank].tread = (buf[13] << 8) | buf[14];
-  apmp_data[nextBank].imu_gyro_scale_gain = (buf[15] << 8) | buf[16];
-  apmp_data[nextBank].crc = buf[COMM_APMP_SIZE - 1];
-  apmp_data_bank = nextBank;
+  int nextBank = ApMpDataBank ^ 1;
+  ApMpData[nextBank].head = (buf[0] << 8) | buf[1];
+  ApMpData[nextBank].cmd = buf[2];
+  ApMpData[nextBank].vx_cmd = (buf[3] << 8) | buf[4];
+  ApMpData[nextBank].vy_cmd = (buf[5] << 8) | buf[6];
+  ApMpData[nextBank].wz_cmd = (buf[7] << 8) | buf[8];
+  ApMpData[nextBank].wheel_radius_right = (buf[9]  << 8) | buf[10];
+  ApMpData[nextBank].wheel_radius_left  = (buf[11] << 8) | buf[12];
+  ApMpData[nextBank].tread = (buf[13] << 8) | buf[14];
+  ApMpData[nextBank].imu_gyro_scale_gain = (buf[15] << 8) | buf[16];
+  ApMpData[nextBank].crc = buf[COMM_APMP_SIZE - 1];
+  ApMpDataBank = nextBank;
 }
 
 void send_data_on_mp_to_ap(void) {

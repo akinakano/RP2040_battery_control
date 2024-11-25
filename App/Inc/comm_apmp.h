@@ -60,8 +60,8 @@ typedef struct {
     uint8_t crc;
 } Comm_APMP_Receive;
 
-extern Comm_APMP_Receive apmp_data[];
-extern int apmp_data_bank;
+extern Comm_APMP_Receive ApMpData[];
+extern int ApMpDataBank;
 extern uint16_t dbg_flag_mpap;
 
 #define STATE_MP_TO_AP_NORMAL           (0x00)

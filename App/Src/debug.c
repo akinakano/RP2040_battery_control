@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "debug.h"
 #include "console.h"
@@ -37,22 +38,27 @@ void debug_menu(void){
       }
     }
     if( c == 'b') {
+      BatteryStatusSt battery;
+      memcpy(&battery, &BatteryStatus[BatteryStatusBank], sizeof(BatteryStatusSt));
       printf("\n-----Battery Info-----\n");
-      printf("Current    : %dmA\n", (int)BatteryStatus[BatteryStatusBank].Current);
-      printf("Voltage    : %dmV\n", BatteryStatus[BatteryStatusBank].Voltage);
-      printf("Capacity   : %d%%\n", BatteryStatus[BatteryStatusBank].Capacity);
-      printf("Temperture : %d.%d degree\n", (BatteryStatus[BatteryStatusBank].Temperture - 2732) / 10, (BatteryStatus[BatteryStatusBank].Temperture - 2732) % 10);
-      printf("Serial     : %04d-%02d-%02d-%05d\n", (BatteryStatus[BatteryStatusBank].ManufactureDate >> 9) + 1980, (BatteryStatus[BatteryStatusBank].ManufactureDate >> 5) & 0x0f, BatteryStatus[BatteryStatusBank].ManufactureDate & 0x1f, BatteryStatus[BatteryStatusBank].SerialNumber);
-      printf("CFET       : %s\n", BatteryStatus[BatteryStatusBank].ManufacturerAccess & (1 << 3) ? "on" : "off");
+      printf("Current    : %dmA\n", (int)battery.Current);
+      printf("Voltage    : %dmV\n", battery.Voltage);
+      printf("Capacity   : %d%%\n", battery.Capacity);
+      printf("Temperture : %d.%d degree\n", (battery.Temperture - 2732) / 10, (battery.Temperture - 2732) % 10);
+      printf("Serial     : %04d-%02d-%02d-%05d\n", (battery.ManufactureDate >> 9) + 1980, (battery.ManufactureDate >> 5) & 0x0f, battery.ManufactureDate & 0x1f, battery.SerialNumber);
+      printf("CFET       : %s\n", battery.ManufacturerAccess & (1 << 3) ? "on" : "off");
       printf("Power15V   : %d\n", Power15V);
       printf("----------------------\n");
     }
-    //apmp_data[apmp_data_bank].cmd = AP_MP_CMD_IDLE;
 }
 
 void debug_print(void){
-    //printf("st %1u %6u %1u %1d ", MC_state.state, MC_state.time_count , state_mp_to_ap, apmp_data[apmp_data_bank].cmd);
-    printf("st %1u %1u %1d ", MC_state.state, state_mp_to_ap, apmp_data[apmp_data_bank].cmd);
+
+    Comm_APMP_Receive apmp_data;
+    memcpy(&apmp_data, &ApMpData[ApMpDataBank], sizeof(Comm_APMP_Receive));
+
+    //printf("st %1u %6u %1u %1d ", MC_state.state, MC_state.time_count , state_mp_to_ap, apmp_data.cmd);
+    printf("st %1u %1u %1d ", MC_state.state, state_mp_to_ap, apmp_data.cmd);
 
     // MP制禦系の表示
 #if 1
@@ -189,33 +195,33 @@ void debug_print(void){
 #endif
 
     /*
-    printf("%04x %02x %04x %04x %04x %04x %02x", apmp_data[apmp_data_bank].head,
-                                                 apmp_data[apmp_data_bank].cmd,
-                                                 apmp_data[apmp_data_bank].vx_cmd,
-                                                 apmp_data[apmp_data_bank].vy_cmd,
-                                                 apmp_data[apmp_data_bank].wz_cmd,
-                                                 apmp_data[apmp_data_bank].wz_cmd,
-                                                 apmp_data[apmp_data_bank].crc);
+    printf("%04x %02x %04x %04x %04x %04x %02x", apmp_data.head,
+                                                 apmp_data.cmd,
+                                                 apmp_data.vx_cmd,
+                                                 apmp_data.vy_cmd,
+                                                 apmp_data.wz_cmd,
+                                                 apmp_data.wz_cmd,
+                                                 apmp_data.crc);
     //*/
     
     // printf("\n");
 #if 0
     printf("mecp %6d(%5d) %6d(%5d) %6d(%5d) %6d(%5d) "
         ,(int)(MECP.wheel_radius_r * 1000000.0f) 
-        ,apmp_data[apmp_data_bank].wheel_radius_right
+        ,apmp_data.wheel_radius_right
         ,(int)(MECP.wheel_radius_l * 1000000.0f) 
-        ,apmp_data[apmp_data_bank].wheel_radius_left
+        ,apmp_data.wheel_radius_left
         ,(int)(MECP.tread          * 100000.0f) 
-        ,apmp_data[apmp_data_bank].tread
+        ,apmp_data.tread
         ,(int)(imu_data.gyro_scale_gain*100000.0f)
-        ,(int)((1.0f + ((float)((int32_t)(apmp_data[apmp_data_bank].imu_gyro_scale_gain)) - 32768) * GYRO_SCALE_GAIN_INT16t_TO_FLOAT)*100000.0f));
+        ,(int)((1.0f + ((float)((int32_t)(apmp_data.imu_gyro_scale_gain)) - 32768) * GYRO_SCALE_GAIN_INT16t_TO_FLOAT)*100000.0f));
 #endif
 #if 0
     printf("APMP %x %x %x %x "
-        , apmp_data[apmp_data_bank].wheel_radius_right
-        , apmp_data[apmp_data_bank].wheel_radius_left
-        , apmp_data[apmp_data_bank].tread
-        , apmp_data[apmp_data_bank].imu_gyro_scale_gain);
+        , apmp_data.wheel_radius_right
+        , apmp_data.wheel_radius_left
+        , apmp_data.tread
+        , apmp_data.imu_gyro_scale_gain);
 #endif
     /*
     printf("mpap %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x " , mpap_buff[0]
@@ -262,7 +268,7 @@ void debug_print(void){
     //printf("omega_res %6d %6d ", (int16_t)((mpap_buff[54]<<8) + mpap_buff[55]), (int16_t)((mpap_buff[58]<<8) + mpap_buff[59]) );
     ///*
 
-    //printf("gg %8d %6d " , (int32_t)(imu_data.gyro_scale_gain*1000000), (apmp_data[apmp_data_bank].imu_gyro_scale_gain));
+    //printf("gg %8d %6d " , (int32_t)(imu_data.gyro_scale_gain*1000000), (apmp_data.imu_gyro_scale_gain));
     printf("flag %2d " , dbg_flag_mpap);
 
     //*/
@@ -274,14 +280,14 @@ void debug_print(void){
 void debug_command(int c){
     if(c == 'i'){
         //MC_state.state = MC_STATE_    IDLE;
-        apmp_data[apmp_data_bank].cmd = AP_MP_CMD_IDLE;
+        ApMpData[ApMpDataBank].cmd = AP_MP_CMD_IDLE;
     }else if(c == 's'){
         if(MC_state.state == MC_STATE_IDLE){
             //MC_state.state = MC_STATE_START;
-            apmp_data[apmp_data_bank].cmd = AP_MP_CMD_RUN;
+            ApMpData[ApMpDataBank].cmd = AP_MP_CMD_RUN;
         }else{
             //MC_state.state = MC_STATE_STOP;
-            apmp_data[apmp_data_bank].cmd = AP_MP_CMD_IDLE;
+            ApMpData[ApMpDataBank].cmd = AP_MP_CMD_IDLE;
         }
     }else if(c == 'u'){
         //vel_ctrl.vel_cmd += 1.0f;
