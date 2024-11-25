@@ -144,8 +144,8 @@ void SPI1_IRQHandler(void) {
     SPI1->IER &= ~SPI_IER_EOTIE;
     SPI1->IFCR |= SPI_IFCR_EOTC | SPI_IFCR_TXTFC | SPI_IFCR_UDRC | SPI_IFCR_OVRC | SPI_IFCR_MODFC | SPI_IFCR_TIFREC;
     SPI1->CR1 &= ~SPI_CR1_SPE;
-    SPI1->IER &= ~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | \
-                              SPI_IT_FRE | SPI_IT_MODF);
+    SPI1->IER &= ~(SPI_IER_EOTIE | SPI_IER_TXPIE | SPI_IER_RXPIE | SPI_IER_DXPIE | SPI_IER_UDRIE | SPI_IER_OVRIE | \
+                              SPI_IER_TIFREIE | SPI_IER_MODFIE);
   SPI1->CFG1 &= ~(SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);    imu_state = SPI_State_Ready;
     if(transferCompleteCallback) transferCompleteCallback();
   }
