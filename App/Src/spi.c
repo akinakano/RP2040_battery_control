@@ -4,13 +4,14 @@
 #include "spi.h"
 #include "gpio.h"
 
-SPI_HandleTypeDef IMU_SPI;
-DMA_HandleTypeDef IMU_DMAC_RX;
-DMA_HandleTypeDef IMU_DMAC_TX;
+typedef enum {
+  SPI_State_Ready,
+  SPI_State_BusyTx,
+  SPI_State_BusyTxRx,
+} SPI_State;
 
+static SPI_State imu_state = SPI_State_Ready;
 static void (*transferCompleteCallback)(void) = (void (*)())NULL;
-static void SPI_DMATransmitReceiveCplt(DMA_HandleTypeDef *hdma);
-static void SPI_DMAError(DMA_HandleTypeDef *hdma);
 
 void spi_Init() {
 
@@ -18,40 +19,23 @@ void spi_Init() {
   RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
   RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
 
-  /* SPI1_RX DMA Init */
-  IMU_DMAC_RX.Instance = DMA1_Stream0;
-  IMU_DMAC_RX.Init.Request = DMA_REQUEST_SPI1_RX;
-  IMU_DMAC_RX.Init.Direction = DMA_PERIPH_TO_MEMORY;
-  IMU_DMAC_RX.Init.PeriphInc = DMA_PINC_DISABLE;
-  IMU_DMAC_RX.Init.MemInc = DMA_MINC_ENABLE;
-  IMU_DMAC_RX.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-  IMU_DMAC_RX.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-  IMU_DMAC_RX.Init.Mode = DMA_NORMAL;
-  IMU_DMAC_RX.Init.Priority = DMA_PRIORITY_LOW;
-  IMU_DMAC_RX.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-  IMU_DMAC_RX.Lock = HAL_UNLOCKED;
-  if(HAL_DMA_Init(&IMU_DMAC_RX) != HAL_OK) Error_Handler();
-  IMU_SPI.hdmarx = &IMU_DMAC_RX;
-  IMU_DMAC_RX.Parent = &IMU_SPI;
+  // SPI1_RX DMA Init
+  DMA1_Stream0->CR &= ~DMA_SxCR_EN;
+  DMA1_Stream0->CR = (0 << DMA_SxCR_DIR_Pos) | DMA_SxCR_MINC;
+  DMA1_Stream0->FCR &= ~(DMA_SxFCR_DMDIS | DMA_SxFCR_FTH);
+  DMA1->LIFCR = DMA_LIFCR_CFEIF0 | DMA_LIFCR_CDMEIF0 | DMA_LIFCR_CTEIF0 | DMA_LIFCR_CHTIF0 | DMA_LIFCR_CTCIF0;
+  DMAMUX1_Channel0->CCR = DMA_REQUEST_SPI1_RX;
+  DMAMUX1_ChannelStatus->CFR = DMAMUX_CFR_CSOF0;
 
-  /* SPI1_TX DMA Init */
-  IMU_DMAC_TX.Instance = DMA1_Stream1;
-  IMU_DMAC_TX.Init.Request = DMA_REQUEST_SPI1_TX;
-  IMU_DMAC_TX.Init.Direction = DMA_MEMORY_TO_PERIPH;
-  IMU_DMAC_TX.Init.PeriphInc = DMA_PINC_DISABLE;
-  IMU_DMAC_TX.Init.MemInc = DMA_MINC_ENABLE;
-  IMU_DMAC_TX.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-  IMU_DMAC_TX.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-  IMU_DMAC_TX.Init.Mode = DMA_NORMAL;
-  IMU_DMAC_TX.Init.Priority = DMA_PRIORITY_LOW;
-  IMU_DMAC_TX.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-  IMU_DMAC_TX.Lock = HAL_UNLOCKED;
-  if(HAL_DMA_Init(&IMU_DMAC_TX) != HAL_OK) Error_Handler();
-  IMU_SPI.hdmatx = &IMU_DMAC_TX;
-  IMU_DMAC_TX.Parent = &IMU_SPI;
+  // SPI1_TX DMA Init
+  DMA1_Stream1->CR &= ~DMA_SxCR_EN;
+  DMA1_Stream1->CR = (1 << DMA_SxCR_DIR_Pos) | DMA_SxCR_MINC;
+  DMA1_Stream1->FCR &= ~(DMA_SxFCR_DMDIS | DMA_SxFCR_FTH);
+  DMA1->LIFCR = DMA_LIFCR_CFEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CTEIF1 | DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTCIF1;
+  DMAMUX1_Channel1->CCR = DMA_REQUEST_SPI1_TX;
+  DMAMUX1_ChannelStatus->CFR = DMAMUX_CFR_CSOF1;
 
-  IMU_SPI.Instance = SPI1;
-  IMU_SPI.State     = HAL_SPI_STATE_READY;
+  imu_state = SPI_State_Ready;
 
   SPI1->CR1 &= SPI_CR1_MASRX_Msk;
   SPI1->CFG1 = (6 << SPI_CFG1_MBR_Pos) | (0 << SPI_CFG1_CRCEN_Pos) | (7 << SPI_CFG1_CRCSIZE_Pos) |
@@ -67,8 +51,8 @@ void spi_RegisterTransferCompleteCallback(void (*callback)()) {
 
 int spi_Transfer(uint8_t *txBuf, uint8_t *rxBuf, int size, uint32_t timeout) {
 
-  if (IMU_SPI.State != HAL_SPI_STATE_READY) return HAL_BUSY;
-  IMU_SPI.State = HAL_SPI_STATE_BUSY_TX;
+  if (imu_state != SPI_State_Ready) return -1;
+  imu_state = SPI_State_BusyTx;
 
   int txCount = size;
   int rxCount = size;
@@ -94,7 +78,7 @@ int spi_Transfer(uint8_t *txBuf, uint8_t *rxBuf, int size, uint32_t timeout) {
         rxCount--;
       } else {
         if((HAL_GetTick() - tickstart) >= timeout) {
-          error = HAL_SPI_ERROR_TIMEOUT;
+          error = -1;
           break;
         }
       }
@@ -103,76 +87,54 @@ int spi_Transfer(uint8_t *txBuf, uint8_t *rxBuf, int size, uint32_t timeout) {
   tickstart = HAL_GetTick();
   while(!(SPI1->SR & SPI_SR_EOT)) {
     if((HAL_GetTick() - tickstart) >= timeout * size) {
-      error = HAL_SPI_ERROR_TIMEOUT;
+      error = -1;
       break;
     }
   }
 
   SPI1->IFCR = SPI_IFCR_EOTC | SPI_IFCR_TXTFC | SPI_IFCR_OVRC | SPI_IFCR_UDRC;
   SPI1->CR1 &= ~SPI_CR1_SPE;
-  IMU_SPI.State = HAL_SPI_STATE_READY;
-  if(error == HAL_SPI_ERROR_TIMEOUT) return HAL_TIMEOUT;
-  return HAL_OK;
+  imu_state = SPI_State_Ready;
+  return error;
 }
 
 int spi_TransferDMA(uint8_t *txBuf, uint8_t*rxBuf, int size) {
 
-  if (IMU_SPI.State != HAL_SPI_STATE_READY) return HAL_BUSY;
-  IMU_SPI.State = HAL_SPI_STATE_BUSY_TX_RX;
+  if (imu_state != SPI_State_Ready) return -1;
+  imu_state = SPI_State_BusyTxRx;
 
   SPI1->CFG2 &= ~SPI_CFG2_COMM;
   SPI1->CFG1 &= ~(SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 
-  IMU_SPI.hdmarx->XferHalfCpltCallback = NULL;
-  IMU_SPI.hdmarx->XferCpltCallback     = SPI_DMATransmitReceiveCplt;
-  IMU_SPI.hdmarx->XferErrorCallback = SPI_DMAError;
-  IMU_SPI.hdmarx->XferAbortCallback = NULL;
-  if (HAL_OK != HAL_DMA_Start_IT(IMU_SPI.hdmarx, (uint32_t)&SPI1->RXDR, (uint32_t)rxBuf, size)) {
-    IMU_SPI.State = HAL_SPI_STATE_READY;
-    return HAL_ERROR;
-  }
+  DMA1_Stream0->CR &= ~DMA_SxCR_EN;
+  DMAMUX1_ChannelStatus->CFR = DMAMUX_CFR_CSOF0;
+  DMA1->LIFCR = DMA_LIFCR_CFEIF0 | DMA_LIFCR_CDMEIF0 | DMA_LIFCR_CTEIF0 | DMA_LIFCR_CHTIF0 | DMA_LIFCR_CTCIF0;
+  DMA1_Stream0->CR &= ~DMA_SxCR_DBM;
+  DMA1_Stream0->PAR = (uint32_t)&SPI1->RXDR;
+  DMA1_Stream0->M0AR = (uint32_t)rxBuf;
+  DMA1_Stream0->NDTR = size;
+  DMA1_Stream0->CR = (DMA1_Stream0->CR & ~(DMA_SxCR_DMEIE | DMA_SxCR_HTIE)) | DMA_SxCR_TCIE | DMA_SxCR_TEIE | DMA_SxCR_DMEIE;
   SPI1->CFG1 |= SPI_CFG1_RXDMAEN;
+  DMA1_Stream0->CR |= DMA_SxCR_EN;
 
-  IMU_SPI.hdmatx->XferHalfCpltCallback = NULL;
-  IMU_SPI.hdmatx->XferCpltCallback     = NULL;
-  IMU_SPI.hdmatx->XferAbortCallback    = NULL;
-  IMU_SPI.hdmatx->XferErrorCallback    = SPI_DMAError;
-  if (HAL_OK != HAL_DMA_Start_IT(IMU_SPI.hdmatx, (uint32_t)txBuf, (uint32_t)&SPI1->TXDR, size)) {
-    HAL_DMA_Abort(IMU_SPI.hdmarx);
-    IMU_SPI.State = HAL_SPI_STATE_READY;
-    return HAL_ERROR;
-  }
-
+  DMA1_Stream1->CR &= ~DMA_SxCR_EN;
+  DMAMUX1_ChannelStatus->CFR = DMAMUX_CFR_CSOF1;
+  DMA1->LIFCR = DMA_LIFCR_CFEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CTEIF1 | DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTCIF1;
+  DMA1_Stream1->FCR |= DMA_SxFCR_FEIE;
+  DMA1_Stream1->CR &= ~DMA_SxCR_DBM;
+  DMA1_Stream1->PAR = (uint32_t)&SPI1->TXDR;
+  DMA1_Stream1->M0AR = (uint32_t)txBuf;
+  DMA1_Stream1->NDTR = size;
+  DMA1_Stream1->CR = (DMA1_Stream1->CR & ~(DMA_SxCR_DMEIE | DMA_SxCR_HTIE)) | DMA_SxCR_TCIE | DMA_SxCR_TEIE | DMA_SxCR_DMEIE;
   SPI1->CR2 = (SPI1->CR2 & ~SPI_CR2_TSIZE) | (size << SPI_CR2_TSIZE_Pos);
   SPI1->CFG1 |= SPI_CFG1_TXDMAEN;
+
   SPI1->CR1 |= SPI_CR1_SPE;
   SPI1->CR1 |= SPI_CR1_CSTART;
 
-  return HAL_OK;  return 0;
-}
+  DMA1_Stream1->CR |= DMA_SxCR_EN;
 
-static void SPI_DMATransmitReceiveCplt(DMA_HandleTypeDef *hdma) {
-
-  SPI1->IER |= SPI_IER_EOTIE;
-}
-
-static void SPI_CloseTransfer() {
-
-  SPI1->IFCR |= SPI_IFCR_EOTC | SPI_IFCR_TXTFC | SPI_IFCR_UDRC | SPI_IFCR_OVRC | SPI_IFCR_MODFC | SPI_IFCR_TIFREC;
-  SPI1->CR1 &= ~SPI_CR1_SPE;
-  SPI1->IER &= ~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | \
-                              SPI_IT_FRE | SPI_IT_MODF);
-  SPI1->CFG1 &= ~(SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
-}
-
-static void SPI_DMAError(DMA_HandleTypeDef *hdma)
-{
-  SPI_HandleTypeDef *hspi = (SPI_HandleTypeDef *)((DMA_HandleTypeDef *)hdma)->Parent;
-
-  if (HAL_DMA_GetError(hdma) != HAL_DMA_ERROR_FE) {
-    SPI_CloseTransfer();
-    hspi->State = HAL_SPI_STATE_READY;
-  }
+  return 0;
 }
 
 void SPI1_IRQHandler(void) {
@@ -180,18 +142,51 @@ void SPI1_IRQHandler(void) {
   if(SPI1->SR & SPI_SR_EOT) {
     SPI1->IFCR |= SPI_IFCR_EOTC | SPI_IFCR_TXTFC | SPI_IFCR_SUSPC;
     SPI1->IER &= ~SPI_IER_EOTIE;
-    SPI_CloseTransfer();
-    IMU_SPI.State = HAL_SPI_STATE_READY;
+    SPI1->IFCR |= SPI_IFCR_EOTC | SPI_IFCR_TXTFC | SPI_IFCR_UDRC | SPI_IFCR_OVRC | SPI_IFCR_MODFC | SPI_IFCR_TIFREC;
+    SPI1->CR1 &= ~SPI_CR1_SPE;
+    SPI1->IER &= ~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | \
+                              SPI_IT_FRE | SPI_IT_MODF);
+  SPI1->CFG1 &= ~(SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);    imu_state = SPI_State_Ready;
     if(transferCompleteCallback) transferCompleteCallback();
   }
 }
 
 void DMA1_Stream0_IRQHandler(void) {
 
-  HAL_DMA_IRQHandler(&hdma_spi1_rx);
+  uint32_t isr = DMA1->LISR;
+  if(isr & DMA_LISR_TEIF0) {
+    if(DMA1_Stream0->CR & DMA_SxCR_TEIE) {
+      DMA1_Stream0->CR &= ~DMA_SxCR_TEIE;
+      DMA1->LIFCR = DMA_LIFCR_CTEIF0;
+    }
+  }
+  if(isr & DMA_LISR_TCIF0) {
+    if(DMA1_Stream0->CR & DMA_SxCR_TCIE) {
+      DMA1->LIFCR = DMA_LIFCR_CTCIF0;
+      DMA1_Stream0->CR &= ~DMA_SxCR_TCIE;
+      SPI1->IER |= SPI_IER_EOTIE; // kick SPI1 EOT
+    }
+  }
 }
 
 void DMA1_Stream1_IRQHandler(void) {
 
-  HAL_DMA_IRQHandler(&hdma_spi1_tx);
+  uint32_t isr = DMA1->LISR;
+  if(isr & DMA_LISR_FEIF1) {
+    if(DMA1_Stream1->FCR & DMA_SxFCR_FEIE) {
+      DMA1->LIFCR = DMA_LIFCR_CFEIF1;
+    }
+  }
+  if(isr & DMA_LISR_TEIF1) {
+    if(DMA1_Stream1->CR & DMA_SxCR_TEIE) {
+      DMA1_Stream1->CR &= ~DMA_SxCR_TEIE;
+      DMA1->LIFCR = DMA_LIFCR_CTEIF1;
+    }
+  }
+  if(isr & DMA_LISR_TCIF1) {
+    if(DMA1_Stream1->CR & DMA_SxCR_TCIE) {
+      DMA1->LIFCR = DMA_LIFCR_CTCIF1;
+      DMA1_Stream1->CR &= ~DMA_SxCR_TCIE;
+    }
+  }
 }

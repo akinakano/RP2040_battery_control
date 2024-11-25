@@ -354,6 +354,7 @@ void icm42688_RegisterReceiveDataCallback(void (*callback)()) {
  *************************************************************************/
 void icm42688_IrqIntervalHandler() {
 
+  if(s_en_imu_err != EN_IMU_ERR_NON) return;
   spi_TransferDMA((uint8_t *)s_imu_read_transmit_data,
                               (uint8_t *)dataBuffer,
                               DMA_DATASIZE);
