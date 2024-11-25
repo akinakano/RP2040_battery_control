@@ -46,27 +46,22 @@ void send_data_on_mp_to_ap(void);
 #define APMP_COMM_LOST_COUNT     (5) //0.6s
 
 typedef struct {
-    uint8_t head_h;
-    uint8_t head_l;
-    uint8_t cmd;
-    uint8_t vx_cmd_h;
-    uint8_t vx_cmd_l;
-    uint8_t vy_cmd_h;
-    uint8_t vy_cmd_l;
-    uint8_t wz_cmd_h;
-    uint8_t wz_cmd_l;
+    uint16_t head;
+    uint16_t vx_cmd;
+    uint16_t vy_cmd;
+    uint16_t wz_cmd;
     uint16_t wheel_radius_right;
     uint16_t wheel_radius_left;
     uint16_t tread;
     uint16_t imu_gyro_scale_gain;
-    uint8_t rsv2_h;
-    uint8_t rsv2_l;
-    uint8_t rsv3_h;
-    uint8_t rsv3_l;
+    uint16_t rsv2;
+    uint16_t rsv3;
+    uint8_t cmd;
     uint8_t crc;
 } Comm_APMP_Receive;
 
-extern Comm_APMP_Receive apmp_data;
+extern Comm_APMP_Receive apmp_data[];
+extern int apmp_data_bank;
 extern uint16_t dbg_flag_mpap;
 
 #define STATE_MP_TO_AP_NORMAL           (0x00)

@@ -9,8 +9,6 @@
 #include "comm_battery.h"
 #include "crc8.h"
 
-extern struct BatteryStatus_st BatteryStatus;
-
 static uint8_t tx_buff[MPAP_TX_BUFF_SIZE];
 static uint8_t rx_buff[APMP_RX_BUFF_SIZE];
 static int rx_pointer = 0;
@@ -19,18 +17,26 @@ static int s_send_status = SEND_OFF_MP_TO_AP;
 static void Parse_APMPData(uint8_t *buf);
 static void mpap_status(uint8_t *buf);
 
-Comm_APMP_Receive apmp_data = {
+Comm_APMP_Receive apmp_data[2] = {
+  {
     .cmd = 0,
     .crc = 0,
-    .head_h = 0,
-    .head_l = 0,
-    .vx_cmd_h = 0x80,
-    .vx_cmd_l = 0x00,
-    .vy_cmd_h = 0x80,
-    .vy_cmd_l = 0x00,
-    .wz_cmd_h = 0x80,
-    .wz_cmd_l = 0x00,
+    .head = 0,
+    .vx_cmd = 0x8000,
+    .vy_cmd = 0x8000,
+    .wz_cmd = 0x8000,
+  },
+  {
+    .cmd = 0,
+    .crc = 0,
+    .head = 0,
+    .vx_cmd = 0x8000,
+    .vy_cmd = 0x8000,
+    .wz_cmd = 0x8000,
+  },
 };
+int apmp_data_bank = 0;
+
 uint16_t state_mp_to_ap = STATE_MP_TO_AP_NORMAL;
 uint16_t dbg_flag_mpap;
 int error_count = 0;
@@ -58,7 +64,7 @@ void Comm_APMP_ErrorCheckInterval() { // 10Hz
     error_count = 0;
 
     #ifdef APMP_COMM_LOST_EMERGENCY
-        apmp_data.cmd = AP_MP_CMD_IDLE;
+        apmp_data[apmp_data_bank].cmd = AP_MP_CMD_IDLE;
     #endif
     state_mp_to_ap |= STATE_MP_TO_AP_ERROR_APCOMM;
   }
@@ -69,20 +75,18 @@ static void Parse_APMPData(uint8_t *buf) {
 
   if(calc_crc(buf, COMM_APMP_SIZE - 1) != buf[COMM_APMP_SIZE - 1]) return;
 
-  apmp_data.head_h = buf[0];
-  apmp_data.head_l = buf[1];
-  apmp_data.cmd = buf[2];
-  apmp_data.vx_cmd_h = buf[3];
-  apmp_data.vx_cmd_l = buf[4];
-  apmp_data.vy_cmd_h = buf[5];
-  apmp_data.vy_cmd_l = buf[6];
-  apmp_data.wz_cmd_h = buf[7];
-  apmp_data.wz_cmd_l = buf[8];
-  apmp_data.wheel_radius_right = (buf[9]  << 8) | buf[10];
-  apmp_data.wheel_radius_left  = (buf[11] << 8) | buf[12];
-  apmp_data.tread = (buf[13] << 8) | buf[14];
-  apmp_data.imu_gyro_scale_gain = (buf[15] << 8) | buf[16];
-  apmp_data.crc = buf[COMM_APMP_SIZE - 1];
+  int nextBank = apmp_data_bank ^ 1;
+  apmp_data[nextBank].head = (buf[0] << 8) | buf[1];
+  apmp_data[nextBank].cmd = buf[2];
+  apmp_data[nextBank].vx_cmd = (buf[3] << 8) | buf[4];
+  apmp_data[nextBank].vy_cmd = (buf[5] << 8) | buf[6];
+  apmp_data[nextBank].wz_cmd = (buf[7] << 8) | buf[8];
+  apmp_data[nextBank].wheel_radius_right = (buf[9]  << 8) | buf[10];
+  apmp_data[nextBank].wheel_radius_left  = (buf[11] << 8) | buf[12];
+  apmp_data[nextBank].tread = (buf[13] << 8) | buf[14];
+  apmp_data[nextBank].imu_gyro_scale_gain = (buf[15] << 8) | buf[16];
+  apmp_data[nextBank].crc = buf[COMM_APMP_SIZE - 1];
+  apmp_data_bank = nextBank;
 }
 
 void send_data_on_mp_to_ap(void) {
@@ -161,18 +165,9 @@ static void mpap_status(uint8_t *buf) {
     uint16_t qz_res = (int16_t)(COMM_DIR_Z * BVC.pos_res[Z_AXIS] * QZ_RAD_TO_INT16t) + 32768;
     buf[24] = (uint8_t)((qz_res & 0xFF00) >> 8);
     buf[25] = (uint8_t)((qz_res & 0x00FF));
-#ifdef BATTERY_INFO
-    buf[26] = BatteryStatus.Capacity;
-#else
-    //vm
-#if(HW_WHEEL == HW_WHEEL_MECANUM)
-    float vm_ave_f = 0.25f * (sv_res[SV1_FR].vdc + sv_res[SV2_FL].vdc + sv_res[SV3_HR].vdc + sv_res[SV4_HL].vdc);
-#elif(HW_WHEEL == HW_WHEEL_DIFF)
-    float vm_ave_f = 0.5f * (sv_res[SV1_FR].vdc + sv_res[SV2_FL].vdc);
-#endif
-    uint8_t vm_ave = (uint8_t)(vm_ave_f);
-    buf[26] = vm_ave;
-#endif
+
+    // battery remaining capacity
+    buf[26] = BatteryStatus[BatteryStatusBank].Capacity;
     //err
     buf[27] = state_mp_to_ap;
     buf[27] |= BVC.BVC_debug_flag;
@@ -271,19 +266,23 @@ static void mpap_status(uint8_t *buf) {
     buf[74] = (uint8_t)((qz_gyro & 0xFF00) >> 8);
     buf[75] = (uint8_t)((qz_gyro & 0x00FF));
 
-    //reserved 76 - 91
-    buf[76] = 0;
-    buf[77] = 0;
-    buf[78] = 0;
-    buf[79] = 0;
-    buf[80] = 0;
-    buf[81] = 0;
+    // battery Voltage mV(16bit)
+    buf[76] = BatteryStatus[BatteryStatusBank].Voltage >> 8;
+    buf[77] = BatteryStatus[BatteryStatusBank].Voltage;
+    // battery Current mA(32bit)
+    buf[78] = BatteryStatus[BatteryStatusBank].Current >> 24;
+    buf[79] = BatteryStatus[BatteryStatusBank].Current >> 16;
+    buf[80] = BatteryStatus[BatteryStatusBank].Current >> 8;
+    buf[81] = BatteryStatus[BatteryStatusBank].Current;
+    // battery status (32bit)
     buf[82] = 0;
     buf[83] = 0;
-    buf[84] = 0;
-    buf[85] = 0;
-    buf[86] = 0;
-    buf[87] = 0;
+    buf[84] = BatteryStatus[BatteryStatusBank].ManufacturerAccess >> 8;
+    buf[85] = BatteryStatus[BatteryStatusBank].ManufacturerAccess;
+    // battery temperture 0.1K
+    buf[86] = BatteryStatus[BatteryStatusBank].Temperture >> 8;
+    buf[87] = BatteryStatus[BatteryStatusBank].Temperture;
+    //reserved 88 - 91
     buf[88] = 0;
     buf[89] = 0;
     buf[90] = 0;

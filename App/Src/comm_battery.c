@@ -3,7 +3,9 @@
 #include "smbus.h"
 
 static int SMBUS_Status = 1;
-struct BatteryStatus_st BatteryStatus;
+BatteryStatusSt BatteryStatus[2];
+int BatteryStatusBank = 0;
+
 uint8_t ReadBuf[32];
 static uint8_t WriteBuf[4];
 
@@ -27,7 +29,6 @@ void comm_battery_init(void) {
 
 static int Battery_CFET_ON() {
 
-  BatteryStatus.ValidFlag = 0;
 
   WriteBuf[0] = 0x3f;
   WriteBuf[1] = 0x63;
@@ -53,16 +54,14 @@ void Comm_Battery_Handler() {
 
 static void comm_batteryTransferCallback() {
 
-  BatteryStatus.ValidFlag |= (1 << 1);
-
+  int nextBank = BatteryStatusBank ^ 1;
   int p = 0;
-  BatteryStatus.Current = ReadBuf[p + 1] | (ReadBuf[p + 2] << 8) | (ReadBuf[p + 3] << 16) | (ReadBuf[p + 4] << 24); p += 5;
-  BatteryStatus.Voltage = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
-  BatteryStatus.Capacity = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
-  BatteryStatus.Temperture = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
-  BatteryStatus.ManufactureDate = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
-  BatteryStatus.SerialNumber = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
-  BatteryStatus.ManufacturerAccess = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
-
-  BatteryStatus.ValidFlag = (1 << 1) | (1 << 0);
+  BatteryStatus[nextBank].Current = ReadBuf[p + 1] | (ReadBuf[p + 2] << 8) | (ReadBuf[p + 3] << 16) | (ReadBuf[p + 4] << 24); p += 5;
+  BatteryStatus[nextBank].Voltage = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
+  BatteryStatus[nextBank].Capacity = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
+  BatteryStatus[nextBank].Temperture = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
+  BatteryStatus[nextBank].ManufactureDate = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
+  BatteryStatus[nextBank].SerialNumber = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
+  BatteryStatus[nextBank].ManufacturerAccess = ReadBuf[p] | (ReadBuf[p + 1] << 8); p += 2;
+  BatteryStatusBank = nextBank;
 }

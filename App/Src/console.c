@@ -73,9 +73,7 @@ int getcharNonblock(void) {
 
 int getchar(void) {
   int c;
-  while((c = getcharNonblock()) < 0) {
-    Sleep();
-  }
+  while((c = getcharNonblock()) < 0);
   if(c == 0x0d) c = '\n';
   return c;
 }
