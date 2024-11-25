@@ -75,8 +75,8 @@ void MotionControl_IrqHandler(){
     imu_data.gyro[Z_AXIS] = GYRO_Z_DIRECTION * l_imu.angular_rate_mrads_z;
 
     //速度指令値代入
-    BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)(apmp_data.vx_cmd_l + (uint16_t)(apmp_data.vx_cmd_h << 8)) - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
-    BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)(apmp_data.wz_cmd_l + (uint16_t)(apmp_data.wz_cmd_h << 8)) - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
+    BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)apmp_data[apmp_data_bank].vx_cmd - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
+    BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)apmp_data[apmp_data_bank].wz_cmd - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
 
     if (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f || fabsf(BVC.vel_cmd_raw[Z_AXIS]) > (0.0001f * SMC_PI_F / 180.0f) || fabsf(BVC.vel_ref[Z_AXIS]) > (3.0f * SMC_PI_F / 180.0f)){
         vqf_SetRestBiasEstEnabled(false);
@@ -147,7 +147,7 @@ void MotionControl_IrqHandler(){
 
     if(uncontroll_count > MC_UNCONTROLLABLE_LIMIT){
         uncontroll_count = 0;
-        apmp_data.cmd = AP_MP_CMD_IDLE;
+        apmp_data[apmp_data_bank].cmd = AP_MP_CMD_IDLE;
     }
 
 #endif
@@ -156,10 +156,10 @@ void MotionControl_IrqHandler(){
     // //apから受信したデータの読み取り処理
 #if 0
     static uint8_t flag = 0;
-    if(apmp_data.cmd == AP_MP_CMD_IDLE){
+    if(apmp_data[apmp_data_bank].cmd == AP_MP_CMD_IDLE){
         MC_state.state = MC_STATE_STOP;
         flag = 0;
-    }else if(apmp_data.cmd == AP_MP_CMD_RUN){
+    }else if(apmp_data[apmp_data_bank].cmd == AP_MP_CMD_RUN){
         if(flag == 0){
             MC_state.state = MC_STATE_START;
         }
@@ -413,7 +413,7 @@ void MotionControl_IrqHandler(){
     //const float gyro_max_calib_noise = 1.0f;    // rad/s
 
     // 停止指示なら問答無用にストップへステート遷移
-    if(apmp_data.cmd == AP_MP_CMD_IDLE && (MC_state.state == MC_STATE_START || MC_state.state == MC_STATE_RUN)){
+    if(apmp_data[apmp_data_bank].cmd == AP_MP_CMD_IDLE && (MC_state.state == MC_STATE_START || MC_state.state == MC_STATE_RUN)){
         MC_state.state = MC_STATE_STOP;
     }
     // ステート制御
@@ -430,7 +430,7 @@ void MotionControl_IrqHandler(){
                 imu_data.gyro_max[i] = imu_data.gyro[i];
                 //imu_data.theta[i] = 0.0f;
 #if 0
-                imu_data.gyro_scale_gain = 1.0f + (float)((int32_t)((uint16_t)(apmp_data.imu_gyro_scale_gain_h) << 8) + (apmp_data.imu_gyro_scale_gain_l) - 32768)*GYRO_SCALE_GAIN_INT16t_TO_FLOAT; //機体ごとのスケールゲインをAPからもらう
+                imu_data.gyro_scale_gain = 1.0f + (float)((int32_t)apmp_data[apmp_data_bank].imu_gyro_scale_gain - 32768)*GYRO_SCALE_GAIN_INT16t_TO_FLOAT; //機体ごとのスケールゲインをAPからもらう
             }
             if(imu_data.gyro_scale_gain>1.1 || imu_data.gyro_scale_gain<0.9){
                 imu_data.gyro_scale_gain = IMU_GYRO_SCALE_GAIN; //うまく受信できていなかったらデフォルト値で初期化
@@ -486,7 +486,7 @@ void MotionControl_IrqHandler(){
             send_cmd_broadcast_data(cmd_mp_sv, FORCE_CNTRL_ALL, COMM_SV_NUM, cmd, MOTOR_TEMP);
             if (imu_data.calib_end == false){
                 MC_state.state = MC_STATE_INIT;
-            } else if (apmp_data.cmd == AP_MP_CMD_RUN) {
+            } else if (apmp_data[apmp_data_bank].cmd == AP_MP_CMD_RUN) {
                 MC_state.state = MC_STATE_START;
             }
             break;
@@ -505,10 +505,10 @@ void MotionControl_IrqHandler(){
 #endif
 
             // APから受け取ったメカパラメータの取り込み
-            MECP.wheel_radius_r = ((float)apmp_data.wheel_radius_right) / 1000000.0f;
-            MECP.wheel_radius_l = ((float)apmp_data.wheel_radius_left ) / 1000000.0f;
-            MECP.tread =          ((float)apmp_data.tread )             / 100000.0f;
-            imu_data.gyro_scale_gain = 1.0f + ((float)((int32_t)(apmp_data.imu_gyro_scale_gain)) - 32768) * GYRO_SCALE_GAIN_INT16t_TO_FLOAT; //機体ごとのスケールゲインをAPからもらう
+            MECP.wheel_radius_r = ((float)apmp_data[apmp_data_bank].wheel_radius_right) / 1000000.0f;
+            MECP.wheel_radius_l = ((float)apmp_data[apmp_data_bank].wheel_radius_left ) / 1000000.0f;
+            MECP.tread =          ((float)apmp_data[apmp_data_bank].tread )             / 100000.0f;
+            imu_data.gyro_scale_gain = 1.0f + ((float)((int32_t)(apmp_data[apmp_data_bank].imu_gyro_scale_gain)) - 32768) * GYRO_SCALE_GAIN_INT16t_TO_FLOAT; //機体ごとのスケールゲインをAPからもらう
             //send_mode_broadcast_data(mode_mp_sv, COMM_SV_NUM, to_sv_mode, MOTOR_TEMP);
             MC_state.state = MC_STATE_RUN;
             break;

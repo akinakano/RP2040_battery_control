@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-void dumpHex(const char *msg, const char *s, uint16_t len);
+void dumpHex(const char *msg, const uint8_t *s, int len);
 
 #endif

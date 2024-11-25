@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-struct BatteryStatus_st {
+typedef struct {
   int32_t Current; // mA
   uint16_t Voltage; // mV
   uint16_t Capacity; // %
@@ -12,8 +12,10 @@ struct BatteryStatus_st {
   uint16_t ManufactureDate; // 15:9 Year-1980, 8:5 Month, 4-0: Day
   uint16_t SerialNumber; // serial of day
   uint16_t ManufacturerAccess; // ManufacturerAccess status
-  uint8_t  ValidFlag;
-};
+} BatteryStatusSt;
+
+extern BatteryStatusSt BatteryStatus[];
+extern int BatteryStatusBank;
 
 void comm_battery_init(void);
 void Comm_Battery_Handler();
