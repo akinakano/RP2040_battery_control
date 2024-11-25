@@ -4,6 +4,7 @@
 #include <stm32h747xx.h>
 #include "console.h"
 #include "gpio.h"
+#include "main.h"
 
 static volatile uint8_t rx_buff[RX_BUFF_SIZE];
 static volatile int rx_tail = 0;
@@ -72,7 +73,9 @@ int getcharNonblock(void) {
 
 int getchar(void) {
   int c;
-  while((c = getcharNonblock()) < 0);
+  while((c = getcharNonblock()) < 0) {
+    Sleep();
+  }
   if(c == 0x0d) c = '\n';
   return c;
 }

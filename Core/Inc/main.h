@@ -26,6 +26,7 @@ extern "C" {
 #include "stm32h7xx_hal.h"
 
 void Error_Handler(void);
+void Sleep(void);
 
 #ifdef __cplusplus
 }

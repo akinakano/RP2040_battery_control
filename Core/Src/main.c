@@ -55,7 +55,6 @@ int main(void) {
 
   while (1) {
     debug_menu();
-    __WFI();
   }
 }
 
@@ -63,4 +62,12 @@ void Error_Handler(void) {
 
   printf("ErrorHandler\n");
   while(1);
+}
+
+void Sleep(void) {
+
+  if(SCB->ICSR & 0xff) return;
+  TEST_PF9(1);
+  __WFI();
+  TEST_PF9(0);
 }
