@@ -113,7 +113,7 @@ int spi_TransferDMA(uint8_t *txBuf, uint8_t*rxBuf, int size) {
   DMA1_Stream0->PAR = (uint32_t)&SPI1->RXDR;
   DMA1_Stream0->M0AR = (uint32_t)rxBuf;
   DMA1_Stream0->NDTR = size;
-  DMA1_Stream0->CR = (DMA1_Stream0->CR & ~(DMA_SxCR_DMEIE | DMA_SxCR_HTIE)) | DMA_SxCR_TCIE | DMA_SxCR_TEIE | DMA_SxCR_DMEIE;
+  DMA1_Stream0->CR = (DMA1_Stream0->CR & ~(DMA_SxCR_DMEIE | DMA_SxCR_HTIE)) | DMA_SxCR_TCIE | DMA_SxCR_TEIE;
   SPI1->CFG1 |= SPI_CFG1_RXDMAEN;
   DMA1_Stream0->CR |= DMA_SxCR_EN;
 
@@ -125,7 +125,7 @@ int spi_TransferDMA(uint8_t *txBuf, uint8_t*rxBuf, int size) {
   DMA1_Stream1->PAR = (uint32_t)&SPI1->TXDR;
   DMA1_Stream1->M0AR = (uint32_t)txBuf;
   DMA1_Stream1->NDTR = size;
-  DMA1_Stream1->CR = (DMA1_Stream1->CR & ~(DMA_SxCR_DMEIE | DMA_SxCR_HTIE)) | DMA_SxCR_TCIE | DMA_SxCR_TEIE | DMA_SxCR_DMEIE;
+  DMA1_Stream1->CR = (DMA1_Stream1->CR & ~(DMA_SxCR_DMEIE | DMA_SxCR_HTIE)) | DMA_SxCR_TCIE | DMA_SxCR_TEIE;
   SPI1->CR2 = (SPI1->CR2 & ~SPI_CR2_TSIZE) | (size << SPI_CR2_TSIZE_Pos);
   SPI1->CFG1 |= SPI_CFG1_TXDMAEN;
 
