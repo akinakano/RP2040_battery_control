@@ -106,6 +106,19 @@ void GPIO_Init() {
   GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL12_Msk) | (10 << GPIO_AFRH_AFSEL11_Pos);
   GPIOA->MODER  = (GPIOA->MODER  & ~GPIO_MODER_MODE12_Msk) | (2 << GPIO_MODER_MODE11_Pos);
 
+  // LED_S1(PA10:AMBER HeartBeat), S2(PG5:Yellow 15V_State) off
+  GPIOA->MODER = ((uint32_t)(GPIOA->MODER) & ~GPIO_MODER_MODE10_Msk) | (1 << GPIO_MODER_MODE10_Pos);
+  GPIOA->BSRR = GPIO_BSRR_BS10;
+  GPIOG->MODER = ((uint32_t)(GPIOG->MODER) & ~GPIO_MODER_MODE5_Msk) | (1 << GPIO_MODER_MODE5_Pos);
+  GPIOG->BSRR = GPIO_BSRR_BR5;
+
+  // POWER-SW input (PC13 internal pull-up)
+  GPIOC->MODER = ((uint32_t)(GPIOC->MODER) & ~GPIO_MODER_MODE13_Msk) | (0 << GPIO_MODER_MODE13_Pos);
+  GPIOC->PUPDR = ((uint32_t)(GPIOC->PUPDR) & ~GPIO_PUPDR_PUPD13_Msk) | (1 << GPIO_PUPDR_PUPD13_Pos);
+
+  // MTRPWR-CTRL
+  GPIOG->MODER = ((uint32_t)(GPIOG->MODER) & ~GPIO_MODER_MODE4_Msk) | (1 << GPIO_MODER_MODE4_Pos);
+
 // TEST_PF9 GPIO_PF9
   // PF5     ------> GPIO out
   // PF6     ------> GPIO out

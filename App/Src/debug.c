@@ -13,7 +13,6 @@
 #include "vqfInstance.h"
 
 extern uint8_t imu_debug_flag;
-extern int Status_15V;
 
 void debug_command(int c);
 void debug_print(void);
@@ -171,7 +170,7 @@ void debug_print(void){
 
 #if 1
     // SV系の表示
-    printf("SV %1d %1d ", sv_data[0].current_state, sv_data[1].current_state);
+    //printf("SV %1d %1d ", sv_data[0].current_state, sv_data[1].current_state);
     //COM_MP_TO_SV * cmd_mp_sv = get_send_cmd_handle();
     //printf("force %6d %6d ", cmd_mp_sv->force[SV1_FR], cmd_mp_sv->force[SV2_FL]);
 
@@ -191,7 +190,7 @@ void debug_print(void){
     //printf("vctx %6d %6d ", (int)(BVC.v_ref[0]),(int)(BVC.v_ref[1]));
     //printf("IQ %6d %6d ", sv_data[SV1_FR].iq, sv_data[SV2_FL].iq);
     //printf("Isrc %6d %6d ", (int)(sv_res[SV1_FR].iq_res), (int)(sv_res[SV2_FL].iq_res));// 20240521現在、SVからはsrc電流がIqのところに来ている。
-    //printf("VOL %6d %6d ", (int)(sv_res[SV1_FR].vdc), (int)(sv_res[SV2_FL].vdc));
+    printf("VOL %6d %6d ", (int)(sv_res[SV1_FR].vdc), (int)(sv_res[SV2_FL].vdc));
 #endif
 
     /*

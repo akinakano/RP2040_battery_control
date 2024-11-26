@@ -19,7 +19,7 @@ void SMBUS_Init() {
   hsmbus1.Instance = I2C1;
   hsmbus1.Init.Timing = 0x307075B1;
   hsmbus1.Init.AnalogFilter = SMBUS_ANALOGFILTER_ENABLE;
-  hsmbus1.Init.OwnAddress1 = 2;
+  hsmbus1.Init.OwnAddress1 = 0;
   hsmbus1.Init.AddressingMode = SMBUS_ADDRESSINGMODE_7BIT;
   hsmbus1.Init.DualAddressMode = SMBUS_DUALADDRESS_DISABLE;
   hsmbus1.Init.OwnAddress2 = 0;
@@ -44,8 +44,7 @@ int SMBUS_Transmit(uint8_t *buf, int len) {
   for(int retry = 0; retry < 3; retry++) {
     HAL_StatusTypeDef ret = HAL_SMBUS_Master_Transmit_IT(&hsmbus1, BATTERY_ADDR, buf, len, SMBUS_FIRST_AND_LAST_FRAME_NO_PEC);
     if(ret != HAL_OK) continue;
-    uint32_t state;
-    while((state = HAL_SMBUS_GetState(&hsmbus1)) == HAL_SMBUS_STATE_BUSY);
+    while(HAL_SMBUS_GetState(&hsmbus1) & HAL_SMBUS_STATE_BUSY);
     return 0;
   }
   return -1;

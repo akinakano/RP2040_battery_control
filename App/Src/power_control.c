@@ -32,11 +32,11 @@ static int Power_Switch(void) {
 static void Power15V_Control(int sw) {
 
   if(sw) {
-    GPIOB->BSRR = GPIO_BSRR_BS2;
+    GPIOG->BSRR = GPIO_BSRR_BS4;
     GPIOG->BSRR = GPIO_BSRR_BS5;
     printf("Power15V on\n");
   } else {
-    GPIOB->BSRR = GPIO_BSRR_BR2;
+    GPIOG->BSRR = GPIO_BSRR_BR4;
     GPIOG->BSRR = GPIO_BSRR_BR5;
     printf("Power15V off\n");
   }
