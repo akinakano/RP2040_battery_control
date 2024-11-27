@@ -171,8 +171,6 @@ void debug_print(void){
 #if 1
     // SV系の表示
     //printf("SV %1d %1d ", sv_data[0].current_state, sv_data[1].current_state);
-    //COM_MP_TO_SV * cmd_mp_sv = get_send_cmd_handle();
-    //printf("force %6d %6d ", cmd_mp_sv->force[SV1_FR], cmd_mp_sv->force[SV2_FL]);
 
     //printf("cnt %6d %6d ", sv_data[0].cnt,sv_data[1].cnt);
     //printf("mr %6d %6d ", sv_data[SV1_FR].mr, sv_data[SV2_FL].mr);

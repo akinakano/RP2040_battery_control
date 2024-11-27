@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stm32h747xx.h>
 #include "motion_controller.h"
 #include "imu_common.h"
@@ -128,12 +129,15 @@ void MotionControl_IrqHandler(){
     imu_data.uni_gyro[Z_AXIS].f = imu_data.gyro[Z_AXIS];
 
     //svから受信したデータの読み取り処理
+    SV_Comm_t *sv_data = SvData[SvDataBank];
+
     for(int i = 0; i < COMM_SV_NUM; i++){
         sv_res[i].iq_res = (float)sv_data[i].iq * 25.0f / 32767.0f*100; //[0.01A]
         sv_res[i].th_res = (float)sv_data[i].mr * 3.14159265358979f / 32767.0f;
         //sv_res[i].vel_res = (float)sv_data[i].hall * 2.0f * 25.0f * 3.14159265358979f / 65535.0f;
         sv_res[i].vel_res = (float)sv_data[i].hall;
         sv_res[i].vdc = (float)(sv_data[i].vdc);
+        if(sv_res[i].vdc == 0.0) printf("%f %d\n", sv_res[i].vdc, sv_data[i].vdc);
     }
 
 #ifdef MC_UNCONTROLLABLE_EMMERGENCY
@@ -402,9 +406,6 @@ void MotionControl_IrqHandler(){
     BodyVelocityControl_3();
 
     //SVへの指示
-    COM_MP_TO_SV * cmd_mp_sv = get_send_cmd_handle();
-    COM_MP_TO_SV * mode_mp_sv = get_send_mode_handle();
-
     int16_t cmd[COMM_SV_NUM] = {0, 0};
     uint8_t to_sv_mode[COMM_SV_NUM] = {TO_IDLE_MODE, TO_IDLE_MODE};
     const float acc_lpf_fc = 1.0f;
@@ -439,7 +440,7 @@ void MotionControl_IrqHandler(){
             }
             to_sv_mode[SV1_FR] = TO_IDLE_MODE;
             to_sv_mode[SV2_FL] = TO_IDLE_MODE;
-            send_mode_broadcast_data(mode_mp_sv, COMM_SV_NUM, to_sv_mode, MOTOR_TEMP);  //Initで明示的にSVを停止させる
+            send_mode_broadcast_data(COMM_SV_NUM, to_sv_mode, MOTOR_TEMP);  //Initで明示的にSVを停止させる
 
             MC_state.state = MC_STATE_CALIB;
             break;
@@ -477,14 +478,14 @@ void MotionControl_IrqHandler(){
                 imu_data.calib_end = true;
                 to_sv_mode[SV1_FR] = TO_FORCE_MODE;
                 to_sv_mode[SV2_FL] = TO_FORCE_MODE;
-                send_mode_broadcast_data(mode_mp_sv, COMM_SV_NUM, to_sv_mode, MOTOR_TEMP);         
+                send_mode_broadcast_data(COMM_SV_NUM, to_sv_mode, MOTOR_TEMP);
             }
             break;
         case MC_STATE_IDLE:
             cmd[SV1_FR] = 0;
             cmd[SV2_FL] = 0;
             //vqf_ResetQuat();
-            send_cmd_broadcast_data(cmd_mp_sv, FORCE_CNTRL_ALL, COMM_SV_NUM, cmd, MOTOR_TEMP);
+            send_cmd_broadcast_data(FORCE_CNTRL_ALL, COMM_SV_NUM, cmd, MOTOR_TEMP);
             if (imu_data.calib_end == false){
                 MC_state.state = MC_STATE_INIT;
             } else if (ApMpData[apmpBank].cmd == AP_MP_CMD_RUN) {
@@ -532,7 +533,7 @@ void MotionControl_IrqHandler(){
             cmd[SV1_FR] = (int16_t)(BVC.t_ref[SV1_FR] * 10000.0f); //[1mNm]
             cmd[SV2_FL] = (int16_t)(BVC.t_ref[SV2_FL] * 10000.0f); //[1mNm]
 #endif
-            send_cmd_broadcast_data(cmd_mp_sv, FORCE_CNTRL_ALL, COMM_SV_NUM, cmd, MOTOR_TEMP);
+            send_cmd_broadcast_data(FORCE_CNTRL_ALL, COMM_SV_NUM, cmd, MOTOR_TEMP);
 #endif
             break;
         case MC_STATE_STOP:
@@ -540,7 +541,7 @@ void MotionControl_IrqHandler(){
             to_sv_mode[SV2_FL] = TO_IDLE_MODE;
             // to_sv_mode[SV3_HR] = TO_IDLE_MODE;
             // to_sv_mode[SV4_HL] = TO_IDLE_MODE;
-            send_mode_broadcast_data(mode_mp_sv, COMM_SV_NUM, to_sv_mode, MOTOR_TEMP);
+            send_mode_broadcast_data(COMM_SV_NUM, to_sv_mode, MOTOR_TEMP);
             //MC_state.state = MC_STATE_IDLE;
             MC_state.state = MC_STATE_INIT;
             break;
