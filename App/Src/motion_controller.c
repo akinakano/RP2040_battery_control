@@ -84,6 +84,12 @@ void IMU_HeaterControl(float temp_tgt, float imu_temp)
 void MotionControl_IrqHandler(){
 
     //TEST_PF9(1);
+
+    //速度指令値代入
+    int apmpBank = ApMpDataBank;
+    BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)ApMpData[apmpBank].vx_cmd - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
+    BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)ApMpData[apmpBank].wz_cmd - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
+
     //IMUから受信したデータの読み取り処理
     imu_float_data l_imu = {0};
     icm42688_GetDataFloat(&l_imu);
@@ -96,10 +102,6 @@ void MotionControl_IrqHandler(){
     imu_data.gyro[Y_AXIS] = GYRO_Y_DIRECTION * l_imu.angular_rate_mrads_y;
     imu_data.gyro[Z_AXIS] = GYRO_Z_DIRECTION * l_imu.angular_rate_mrads_z;
 
-    //速度指令値代入
-    int apmpBank = ApMpDataBank;
-    BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)ApMpData[apmpBank].vx_cmd - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
-    BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)ApMpData[apmpBank].wz_cmd - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
 
 #if 0
     if (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f || fabsf(BVC.vel_cmd_raw[Z_AXIS]) > (0.0001f * SMC_PI_F / 180.0f)

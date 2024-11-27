@@ -369,22 +369,21 @@ void icm42688_IrqIntervalHandler() {
  *************************************************************************/
 void icm42688_GetDataFloat(imu_float_data *l_imu) {
 
-    if (EN_IMU_ERR_NON != s_en_imu_err) {
-        l_imu->temp_data = 0.0f;
-        l_imu->angular_rate_mrads_x = 0.0f;
-        l_imu->angular_rate_mrads_y = 0.0f;
-        l_imu->angular_rate_mrads_z = 0.0f;
-        l_imu->acceleration_mg_x    = 0.0f;
-        l_imu->acceleration_mg_y    = 0.0f;
-        l_imu->acceleration_mg_z    = 0.0f;
-    }
-    else {
-      l_imu->temp_data            = IMU_FROM_LSB_TO_degC((dataBuffer[1] << 8) | dataBuffer[2]);
-      l_imu->acceleration_mg_x    = IMU_FROM_FS_TO_mG((dataBuffer[3] << 8) | dataBuffer[4]);
-      l_imu->acceleration_mg_y    = IMU_FROM_FS_TO_mG((dataBuffer[5] << 8) | dataBuffer[6]);
-      l_imu->acceleration_mg_z    = IMU_FROM_FS_TO_mG((dataBuffer[7] << 8) | dataBuffer[8]);
-      l_imu->angular_rate_mrads_x = IMU_FROM_FS_TO_mRADS((dataBuffer[9] << 8) | dataBuffer[10]);
-      l_imu->angular_rate_mrads_y = IMU_FROM_FS_TO_mRADS((dataBuffer[11] << 8) | dataBuffer[12]);
-      l_imu->angular_rate_mrads_z = IMU_FROM_FS_TO_mRADS((dataBuffer[13] << 8) | dataBuffer[14]);
-    }
+  if(EN_IMU_ERR_NON != s_en_imu_err) {
+    l_imu->temp_data = 0.0f;
+    l_imu->angular_rate_mrads_x = 0.0f;
+    l_imu->angular_rate_mrads_y = 0.0f;
+    l_imu->angular_rate_mrads_z = 0.0f;
+    l_imu->acceleration_mg_x    = 0.0f;
+    l_imu->acceleration_mg_y    = 0.0f;
+    l_imu->acceleration_mg_z    = 0.0f;
+  } else {
+    l_imu->temp_data            = IMU_FROM_LSB_TO_degC((dataBuffer[1] << 8) | dataBuffer[2]);
+    l_imu->acceleration_mg_x    = IMU_FROM_FS_TO_mG((dataBuffer[3] << 8) | dataBuffer[4]);
+    l_imu->acceleration_mg_y    = IMU_FROM_FS_TO_mG((dataBuffer[5] << 8) | dataBuffer[6]);
+    l_imu->acceleration_mg_z    = IMU_FROM_FS_TO_mG((dataBuffer[7] << 8) | dataBuffer[8]);
+    l_imu->angular_rate_mrads_x = IMU_FROM_FS_TO_mRADS((dataBuffer[9] << 8) | dataBuffer[10]);
+    l_imu->angular_rate_mrads_y = IMU_FROM_FS_TO_mRADS((dataBuffer[11] << 8) | dataBuffer[12]);
+    l_imu->angular_rate_mrads_z = IMU_FROM_FS_TO_mRADS((dataBuffer[13] << 8) | dataBuffer[14]);
+  }
 }
