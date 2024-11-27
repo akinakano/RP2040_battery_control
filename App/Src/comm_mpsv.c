@@ -3,9 +3,6 @@
 #include "crc8.h"
 #include "rs485.h"
 
-#include <stdio.h>
-#include "gpio.h"
-
 SV_Comm_t SvData[2][COMM_SV_NUM];
 int SvDataBank = 0;
 
@@ -52,12 +49,10 @@ static void ReceiveDataParse(void) {
     if(rxP == packetLen) {
       uint8_t crc = calc_crc(rxBuf, packetLen - 1);
       ReceiveCommandParse(rxBuf, packetLen, d == crc ? 0 : 1);
-      if(d != crc) printf("crc error %02x %02x\n", crc, d);
       rxP = 0;
       dn++;
     }
   }
-  if(dn != 2) printf("data length error %d", packetLength);
   SvDataBank ^= 1;
 }
 

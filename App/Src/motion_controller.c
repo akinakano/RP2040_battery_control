@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stm32h747xx.h>
 #include "motion_controller.h"
 #include "imu_common.h"
@@ -137,7 +136,6 @@ void MotionControl_IrqHandler(){
         //sv_res[i].vel_res = (float)sv_data[i].hall * 2.0f * 25.0f * 3.14159265358979f / 65535.0f;
         sv_res[i].vel_res = (float)sv_data[i].hall;
         sv_res[i].vdc = (float)(sv_data[i].vdc);
-        if(sv_res[i].vdc == 0.0) printf("%f %d\n", sv_res[i].vdc, sv_data[i].vdc);
     }
 
 #ifdef MC_UNCONTROLLABLE_EMMERGENCY
