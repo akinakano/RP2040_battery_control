@@ -367,35 +367,24 @@ void icm42688_IrqIntervalHandler() {
  * @return  None
  * @brief   SPI 受信処理
  *************************************************************************/
-imu_float_data icm42688_GetDataFloat() {
+void icm42688_GetDataFloat(imu_float_data *l_imu) {
 
-    UN_IMU_DATA l_imudata;
-    l_imudata.st_data.ss_temp_data    = (int16_t)(((dataBuffer[1]  & 0x00ff) << 8) | (dataBuffer[2]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_x = (int16_t)(((dataBuffer[3]  & 0x00ff) << 8) | (dataBuffer[4]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_y = (int16_t)(((dataBuffer[5]  & 0x00ff) << 8) | (dataBuffer[6]  & 0x00ff));
-    l_imudata.st_data.ss_accel_data_z = (int16_t)(((dataBuffer[7]  & 0x00ff) << 8) | (dataBuffer[8]  & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_x  = (int16_t)(((dataBuffer[9]  & 0x00ff) << 8) | (dataBuffer[10] & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_y  = (int16_t)(((dataBuffer[11] & 0x00ff) << 8) | (dataBuffer[12] & 0x00ff));
-    l_imudata.st_data.ss_gyro_data_z  = (int16_t)(((dataBuffer[13] & 0x00ff) << 8) | (dataBuffer[14] & 0x00ff));
-
-    imu_float_data l_imu;
     if (EN_IMU_ERR_NON != s_en_imu_err) {
-        l_imu.temp_data = 0.0f;
-        l_imu.angular_rate_mrads_x = 0.0f;
-        l_imu.angular_rate_mrads_y = 0.0f;
-        l_imu.angular_rate_mrads_z = 0.0f;
-        l_imu.acceleration_mg_x    = 0.0f;
-        l_imu.acceleration_mg_y    = 0.0f;
-        l_imu.acceleration_mg_z    = 0.0f;
+        l_imu->temp_data = 0.0f;
+        l_imu->angular_rate_mrads_x = 0.0f;
+        l_imu->angular_rate_mrads_y = 0.0f;
+        l_imu->angular_rate_mrads_z = 0.0f;
+        l_imu->acceleration_mg_x    = 0.0f;
+        l_imu->acceleration_mg_y    = 0.0f;
+        l_imu->acceleration_mg_z    = 0.0f;
     }
     else {
-      l_imu.temp_data            = IMU_FROM_LSB_TO_degC(l_imudata.st_data.ss_temp_data );
-      l_imu.acceleration_mg_x    = IMU_FROM_FS_TO_mG(l_imudata.st_data.ss_accel_data_x);
-      l_imu.acceleration_mg_y    = IMU_FROM_FS_TO_mG(l_imudata.st_data.ss_accel_data_y);
-      l_imu.acceleration_mg_z    = IMU_FROM_FS_TO_mG(l_imudata.st_data.ss_accel_data_z);
-      l_imu.angular_rate_mrads_x = IMU_FROM_FS_TO_mRADS(l_imudata.st_data.ss_gyro_data_x);
-      l_imu.angular_rate_mrads_y = IMU_FROM_FS_TO_mRADS(l_imudata.st_data.ss_gyro_data_y);
-      l_imu.angular_rate_mrads_z = IMU_FROM_FS_TO_mRADS(l_imudata.st_data.ss_gyro_data_z);
+      l_imu->temp_data            = IMU_FROM_LSB_TO_degC((dataBuffer[1] << 8) | dataBuffer[2]);
+      l_imu->acceleration_mg_x    = IMU_FROM_FS_TO_mG((dataBuffer[3] << 8) | dataBuffer[4]);
+      l_imu->acceleration_mg_y    = IMU_FROM_FS_TO_mG((dataBuffer[5] << 8) | dataBuffer[6]);
+      l_imu->acceleration_mg_z    = IMU_FROM_FS_TO_mG((dataBuffer[7] << 8) | dataBuffer[8]);
+      l_imu->angular_rate_mrads_x = IMU_FROM_FS_TO_mRADS((dataBuffer[9] << 8) | dataBuffer[10]);
+      l_imu->angular_rate_mrads_y = IMU_FROM_FS_TO_mRADS((dataBuffer[11] << 8) | dataBuffer[12]);
+      l_imu->angular_rate_mrads_z = IMU_FROM_FS_TO_mRADS((dataBuffer[13] << 8) | dataBuffer[14]);
     }
-    return l_imu;
 }

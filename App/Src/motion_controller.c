@@ -86,7 +86,7 @@ void MotionControl_IrqHandler(){
     //TEST_PF9(1);
     //IMUから受信したデータの読み取り処理
     imu_float_data l_imu = {0};
-    l_imu = icm42688_GetDataFloat();
+    icm42688_GetDataFloat(&l_imu);
 
     imu_data.temp        = l_imu.temp_data;
     imu_data.acc[X_AXIS] = ACC_X_DIRECTION * l_imu.acceleration_mg_x;

@@ -32,15 +32,15 @@
 #define IMU_FS_15p625dps_COEFF      (4.768372E-01f)
 
 /* dps->mdps->rad/s */
-#define IMU_FROM_FS_TO_mRADS(lsb)   (float)((lsb) * IMU_FS_1000dps_COEFF * TO_RAD_COEFF * 0.001f)
-#define IMU_FROM_FS_TO_mG(lsb)      (float)((lsb) * IMU_FS_16g_COEFF * TO_G_COEFF * 0.001f )
+#define IMU_FROM_FS_TO_mRADS(lsb)   (float)((float)(lsb) * IMU_FS_1000dps_COEFF * TO_RAD_COEFF * 0.001f)
+#define IMU_FROM_FS_TO_mG(lsb)      (float)((float)(lsb) * IMU_FS_16g_COEFF * TO_G_COEFF * 0.001f )
 
-#define IMU_FROM_LSB_TO_degC(lsb)   (float)((lsb * 7.548309E-03f) + 25.0f)
+#define IMU_FROM_LSB_TO_degC(lsb)   (float)(((float)(lsb) * 7.548309E-03f) + 25.0f)
 
 /* Public Function */
-void           icm42688_Init();
-void           icm42688_IrqIntervalHandler();
-imu_float_data icm42688_GetDataFloat();
+void icm42688_Init();
+void icm42688_IrqIntervalHandler();
+void icm42688_GetDataFloat(imu_float_data *_imu);
 void icm42688_RegisterReceiveDataCallback(void (*callback)());
 
 #endif
