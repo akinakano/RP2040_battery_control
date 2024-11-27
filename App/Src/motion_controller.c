@@ -59,9 +59,37 @@ void MotionControl_Init() {
   icm42688_RegisterReceiveDataCallback(&MotionControl_IrqHandler);
 }
 
+void IMU_HeaterControl(float temp_tgt, float imu_temp)
+{
+    const float dt = 1.0f / MOTION_CONTROL_FREQ;
+    const float kp = 0.01f;
+    const float ki = 0.01f;
+    const float int_min = 0.0f;
+    const float int_max = 0.2f;
+    const float out_min = 0.0f;
+    const float out_max = 0.3f;
+
+    static float integral = 0.0f;
+
+    float error = temp_tgt - imu_temp;
+
+    integral = MC_LIM_MIN_MAX(integral + error * ki * dt, int_min, int_max);
+        
+    float out = MC_LIM_MIN_MAX(error * kp + integral, out_min, out_max);
+
+    // hard ware depend
+    TIM15->CCR2 = (uint32_t)((float)TIM15->ARR * out + 0.5f);
+}
+
 void MotionControl_IrqHandler(){
 
     //TEST_PF9(1);
+    
+    //速度指令値代入
+    int apmpBank = ApMpDataBank;
+    BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)ApMpData[apmpBank].vx_cmd - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
+    BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)ApMpData[apmpBank].wz_cmd - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
+
     //IMUから受信したデータの読み取り処理
     imu_float_data l_imu = {0};
     l_imu = icm42688_GetDataFloat();
@@ -74,12 +102,9 @@ void MotionControl_IrqHandler(){
     imu_data.gyro[Y_AXIS] = GYRO_Y_DIRECTION * l_imu.angular_rate_mrads_y;
     imu_data.gyro[Z_AXIS] = GYRO_Z_DIRECTION * l_imu.angular_rate_mrads_z;
 
-    //速度指令値代入
-    int apmpBank = ApMpDataBank;
-    BVC.vel_cmd_raw[X_AXIS] = COMM_DIR_X * ((float)((int32_t)ApMpData[apmpBank].vx_cmd - 32768) * VXY_INT16t_TO_MPS + BVC.vel_cmd_dbg[X_AXIS]);  // [m/s]
-    BVC.vel_cmd_raw[Z_AXIS] = COMM_DIR_Z * ((float)((int32_t)ApMpData[apmpBank].wz_cmd - 32768) * WZ_INT16t_TO_RADPS  + BVC.vel_cmd_dbg[Z_AXIS]); // [rad/s]
-
-    if (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f || fabsf(BVC.vel_cmd_raw[Z_AXIS]) > (0.0001f * SMC_PI_F / 180.0f) || fabsf(BVC.vel_ref[Z_AXIS]) > (3.0f * SMC_PI_F / 180.0f)){
+#if 0
+    if (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f || fabsf(BVC.vel_cmd_raw[Z_AXIS]) > (0.0001f * SMC_PI_F / 180.0f)
+            || fabsf(BVC.vel_ref[Z_AXIS]) > 0.05f || fabsf(BVC.vel_res[Z_AXIS]) > 0.003f){
         vqf_SetRestBiasEstEnabled(false);
     } else {
         // 目標速度のクリア
@@ -126,6 +151,7 @@ void MotionControl_IrqHandler(){
     imu_data.uni_gyro[X_AXIS].f = imu_data.gyro[X_AXIS];
     imu_data.uni_gyro[Y_AXIS].f = imu_data.gyro[Y_AXIS];
     imu_data.uni_gyro[Z_AXIS].f = imu_data.gyro[Z_AXIS];
+#endif
 
     //svから受信したデータの読み取り処理
     for(int i = 0; i < COMM_SV_NUM; i++){
@@ -133,8 +159,76 @@ void MotionControl_IrqHandler(){
         sv_res[i].th_res = (float)sv_data[i].mr * 3.14159265358979f / 32767.0f;
         //sv_res[i].vel_res = (float)sv_data[i].hall * 2.0f * 25.0f * 3.14159265358979f / 65535.0f;
         sv_res[i].vel_res = (float)sv_data[i].hall;
-        sv_res[i].vdc = (float)(sv_data[i].vdc);
+        sv_res[i].vdc = (float)sv_data[i].vdc / 10.0f;
     }
+
+    // IMUのヒーター温度調整
+    IMU_HeaterControl(45.0f, imu_data.temp);
+
+#if 1
+    // 静止判定へ入ってよいかを判定する
+    // 角速度指令値が一定以下で静止判定に入るように変更：静止時に指令値をキープするため
+    // 角速度が凄く小さいときに静止判定に入るように変更：静止時にゆっくり動いた際に抜けるため
+    // 処理位置をSVのデータ取得後に移動：SVのVM電圧を見るように変更するため
+    // SVのVM電圧が一定値以下で指令値を見なくなるように変更：回転キャリブのため
+    BVC.stationary_flag = 0;
+    BVC.stationary_flag |= (sv_res[SV1_FR].vdc > 5.0f || sv_res[SV2_FL].vdc > 5.0f ?    0x01 : 0); 
+    BVC.stationary_flag |= (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f ?                   0x02 : 0); 
+    BVC.stationary_flag |= (fabsf(BVC.vel_cmd_raw[Z_AXIS]) > 0.0001f*SMC_PI_F/180.0f ?  0x04 : 0); 
+    BVC.stationary_flag |= (fabsf(BVC.vel_ref[Z_AXIS]) > 0.08f ?                        0x08 : 0); 
+    BVC.stationary_flag |= (fabsf(BVC.vel_res[Z_AXIS]) > 0.005f ?                       0x10 : 0); 
+    BVC.stationary_flag |= (fabsf(BVC.vel_res[Z_AXIS]) > 0.005f ?                       0x20 : 0); 
+
+    if (((sv_res[SV1_FR].vdc > 5.0f || sv_res[SV2_FL].vdc > 5.0f) 
+            && (fabsf(BVC.vel_cmd_raw[X_AXIS]) > 0.001f || fabsf(BVC.vel_cmd_raw[Z_AXIS]) > 0.0001f*SMC_PI_F/180.0f
+            || fabsf(BVC.vel_ref[Z_AXIS]) > 0.08f || fabsf(BVC.vel_res[Z_AXIS]) > 0.005f)) || fabsf(BVC.vel_res[Z_AXIS]) > 0.005f){
+        vqf_SetRestBiasEstEnabled(false);
+    } else {
+        // 目標速度のクリア
+        BVC.vel_cmd_raw[X_AXIS] = 0.0f;
+        BVC.vel_cmd_raw[Z_AXIS] = 0.0f;
+        vqf_SetRestBiasEstEnabled(true);
+    }
+
+    // VQFで姿勢推定
+    float imu_gyro[3] = {imu_data.gyro[X_AXIS], -imu_data.gyro[Y_AXIS], imu_data.gyro[Z_AXIS] * imu_data.gyro_scale_gain};
+    float imu_acc[3]  = {imu_data.acc[X_AXIS],  -imu_data.acc[Y_AXIS],  -imu_data.acc[Z_AXIS]};
+    vqf_Update(imu_gyro, imu_acc);
+
+    // バイアス推定値を取得
+    float bias[3];
+    vqf_GetBiasEstimate(bias);
+
+    float vqf_gyro[3] = {imu_gyro[0] - bias[0], -(imu_gyro[1] - bias[1]), (imu_gyro[2] - bias[2])};
+
+    // 姿勢をクォータニオンで取得
+    float quat[4];
+    vqf_GetQuat6D(quat);
+    
+    for (int i=0; i<3; i++){
+        if (imu_data.calib_end){
+            imu_data.acc[i]  -= imu_data.acc_bias[i];
+            imu_data.gyro[i] -= imu_data.gyro_bias[i];
+
+            //imu_data.theta[i] += imu_data.gyro[i] / MOTION_CONTROL_FREQ;
+            //imu_data.theta[i] = MC_CLIP_PI(imu_data.theta[i]);
+        } else {
+            //imu_data.theta[i] = 0.0f;
+        }
+    }
+
+    // キャリブが終わっていたらゲイン調整(APから遅れて貰うため)
+    if (imu_data.calib_end) {
+        imu_data.gyro[Z_AXIS] *= imu_data.gyro_scale_gain;
+    }
+
+    imu_data.uni_acc[X_AXIS].f  = imu_data.acc[X_AXIS];
+    imu_data.uni_acc[Y_AXIS].f  = imu_data.acc[Y_AXIS];
+    imu_data.uni_acc[Z_AXIS].f  = imu_data.acc[Z_AXIS];
+    imu_data.uni_gyro[X_AXIS].f = imu_data.gyro[X_AXIS];
+    imu_data.uni_gyro[Y_AXIS].f = imu_data.gyro[Y_AXIS];
+    imu_data.uni_gyro[Z_AXIS].f = imu_data.gyro[Z_AXIS];
+#endif
 
 #ifdef MC_UNCONTROLLABLE_EMMERGENCY
     static uint16_t uncontroll_count = 0;

@@ -83,6 +83,7 @@ void MotionControl_Init();
 #define MC_DELTA_LIMIT2(val, tgt, delta1, delta2)    (MC_ABS(tgt) > (MC_ABS(val) + (delta1)) ? (MC_ABS(val) + (delta1)) : MC_ABS(tgt) < (MC_ABS(val) - (delta2)) ? (MC_ABS(val) - (delta2)) : MC_ABS(tgt))
 #define MC_SIGN(s,val)                     ((s)<(0) ? (-val) : (val))
 #define MC_CLIP_PI(s)                      ((s)>(SMC_PI_F) ? ((s)-2.0f*SMC_PI_F) : ((s)<(-SMC_PI_F) ? ((s)+2.0f*SMC_PI_F) : (s)))
+#define MC_LIM_MIN_MAX(val,min,max)        ((val)<(min) ? (min) : ((val)>(max) ? (max) : (val)))
 
 //運動制御ステータス
 typedef struct {
@@ -157,6 +158,7 @@ typedef struct{
     float omega_ref_adj_y;
     float omega_ref_prev;
     uint16_t BVC_debug_flag;
+    uint16_t stationary_flag;
 }BODY_VEL_CTRL_t;
 
 // オドメトリ計算用
