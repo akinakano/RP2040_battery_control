@@ -31,7 +31,7 @@ void Console_Init(void) { // DebugUART
   CONSOLE_UART->CR3 = USART_CR3_RXFTIE | (0b100 << USART_CR3_RXFTCFG_Pos);
   CONSOLE_UART->GTPR = 0; // prescaller x1
   CONSOLE_UART->RTOR = CONSOLE_BAUDRATE * 20 / 1000; // 20ms
-  uint32_t usart_div = SystemD2Clock / 2 / CONSOLE_BAUDRATE;
+  uint32_t usart_div = (SystemD2Clock / 2 + CONSOLE_BAUDRATE / 2) / CONSOLE_BAUDRATE;
   CONSOLE_UART->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate
   CONSOLE_UART->CR1 |= USART_CR1_UE;
 

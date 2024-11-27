@@ -27,8 +27,8 @@ void rs485_Init(void) {
   RS485_UART->CR3 = USART_CR3_RXFTIE | (0b100 << USART_CR3_RXFTCFG_Pos) | USART_CR3_DEM;
   RS485_UART->GTPR = 0; // prescaller x1
   RS485_UART->RTOR = RS485_BAUDRATE * 50 / 1000 / 1000; // 50us
-  uint32_t usart_div = SystemD2Clock / 2 / RS485_BAUDRATE;
-  RS485_UART->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk|USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate
+  uint32_t usart_div = (SystemD2Clock / 2 + RS485_BAUDRATE / 2) / RS485_BAUDRATE;
+  RS485_UART->BRR = (usart_div & (USART_BRR_DIV_FRACTION_Msk | USART_BRR_DIV_MANTISSA_Msk)) << USART_BRR_DIV_FRACTION_Pos; //baudrate
   RS485_UART->CR1 |= USART_CR1_UE;
 }
 
