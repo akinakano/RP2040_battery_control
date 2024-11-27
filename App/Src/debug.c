@@ -57,7 +57,7 @@ void debug_print(void){
     memcpy(&apmp_data, &ApMpData[ApMpDataBank], sizeof(Comm_APMP_Receive));
 
     //printf("st %1u %6u %1u %1d ", MC_state.state, MC_state.time_count , state_mp_to_ap, apmp_data.cmd);
-    printf("st %1u %1u %1d ", MC_state.state, state_mp_to_ap, apmp_data.cmd);
+    printf("st %1u %1u %1d %02x %04x ", MC_state.state, state_mp_to_ap, apmp_data.cmd, BVC.stationary_flag, (unsigned int)TIM15->CNT);
 
     // MP制禦系の表示
 #if 1
@@ -123,8 +123,9 @@ void debug_print(void){
         , (int)(imu_data.gyro[X_AXIS] * 180.0f*1000.0f / SMC_PI_F)
         , (int)(imu_data.gyro[Y_AXIS] * 180.0f*1000.0f / SMC_PI_F)
         , (int)(imu_data.gyro[Z_AXIS] * 180.0f*1000.0f / SMC_PI_F));
-    printf("temp %4d "
-        , (int)(imu_data.temp * 10.0f));
+    printf("temp %4d %3d "
+        , (int)(imu_data.temp * 10.0f)
+        , (int)(TIM15->CCR2 * 1000 / TIM15->ARR));
 #endif
 #if 0
     printf("gbias %6d "
@@ -188,7 +189,7 @@ void debug_print(void){
     //printf("vctx %6d %6d ", (int)(BVC.v_ref[0]),(int)(BVC.v_ref[1]));
     //printf("IQ %6d %6d ", sv_data[SV1_FR].iq, sv_data[SV2_FL].iq);
     //printf("Isrc %6d %6d ", (int)(sv_res[SV1_FR].iq_res), (int)(sv_res[SV2_FL].iq_res));// 20240521現在、SVからはsrc電流がIqのところに来ている。
-    printf("VOL %6d %6d ", (int)(sv_res[SV1_FR].vdc), (int)(sv_res[SV2_FL].vdc));
+    printf("VOL %3d %3d ", (int)(sv_res[SV1_FR].vdc*10.0f), (int)(sv_res[SV2_FL].vdc*10.0f));
 #endif
 
     /*
