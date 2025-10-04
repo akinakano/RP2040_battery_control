@@ -1,4 +1,4 @@
-# RP2040-zero Battery Control System
+# RP2040-zero Battery Control System(概要)
 
 PRIMO5でRP2040-zeroを用いて、上物のバッテリを制御するシステム
 
