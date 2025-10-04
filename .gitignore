@@ -1,13 +1,4 @@
-.mxproject
-*.xcodeproj
-*.d
-*.o
-*.su
-*.bin
-*.elf
-*.map
-*.list
-*.launch
-*.DS_Store
-*.log
-build
+.pio/
+.vscode/
+MP.lnk
+
