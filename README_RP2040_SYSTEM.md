@@ -1,4 +1,4 @@
-# RP2040 Battery Control System
+# RP2040-zero Battery Control System(詳細)
 
 ## 概要
 RP2040-zeroマイコンボードを使用したバッテリー制御システムです。SMBUSプロトコルによるバッテリー通信、1Hz JSON形式でのMPAPプロトコル送信、WS2812 LEDハートビート機能を実装しています。
