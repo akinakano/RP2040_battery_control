@@ -1,6 +1,6 @@
 # RP2040-zero Battery Control System
 
-STM32H7のPRIMO4 MPからRP2040-zeroに移植したバッテリ制御システム
+PRIMO5でRP2040-zeroを用いて、上物のバッテリを制御するシステム
 
 ## 機能
 
@@ -70,15 +70,6 @@ USB接続後、シリアルモニター（115200 baud）で以下のコマンド
     ├── smbus_rp2040.h
     └── usb_communication.h
 ```
-
-## 移植内容
-
-STM32版から以下の機能を移植：
-
-- **comm_battery.c** → **battery_control.cpp**
-- **smbus.c** → **smbus_rp2040.cpp**  
-- **power_control.c** → 一部機能を統合
-- **USB CDC通信** → **usb_communication.cpp**
 
 ## 注意事項
 
